@@ -106,11 +106,11 @@ New API openai_video 主机协议
 - [x] 检查 Sora、私有 Grok 路径、未知模型和超出模型能力的分辨率不会进入插件。
 - [x] 检查本地 Grok 文件只保留宿主占位符，Seedance 本地文件被拒绝。
 
-### 阶段四：发布 — 待执行
+### 阶段四：发布 — 已完成
 
-- [ ] 创建 GitHub 公开仓库 `QLHazyCoder/new-api-video-gateway-plugin`。
-- [ ] 在 `main` 提交并推送插件源文件。
-- [ ] 读取远程提交和 Actions 状态，确认远程内容与本地提交一致。
+- [x] 创建 GitHub 公开仓库 `QLHazyCoder/new-api-video-gateway-plugin`。
+- [x] 在 `main` 提交并推送插件源文件。
+- [x] 读取远程提交和 Actions 状态，确认远程内容与本地提交一致。
 
 ## 阶段自检记录
 
@@ -131,10 +131,10 @@ New API openai_video 主机协议
 - 提交响应没有可识别任务 ID 时失败。
 - 未知轮询状态返回 `UNKNOWN`，不会错误地当成进行中。
 - 任务成功后只声明标准 video artifact，内容请求支持 GET/HEAD。
-- 渲染结果使用 New API 公共任务 ID 的 content URL；上游任务 ID不直接提供给客户。
+- 渲染结果使用 New API 公共任务 ID 的 content URL；上游任务 ID 不直接提供给客户。
 
 ## 最终审查结论
 
 当前实现符合 New API Task Plugin v1 的单文件沙箱边界和 `openai_video` 主机协议边界。7 个模型、模型映射、分辨率能力、图片输入、轮询、artifact、完成态计量均有显式逻辑和 fixture 覆盖。插件仍然依赖宿主已经支持 Task Plugin v1、usage profiles、文件占位符和视频 artifact；安装前应确认目标 New API 构建包含这些能力。
 
-远程发布完成后，验收条件是：GitHub `main` 的提交包含上述四个文件，New API lint 成功，golden fixture 21/21 成功，并且管理员能在渠道类型 **Task Plugin (61)** 中绑定 `coder-video-gateway` 后使用标准 `POST /v1/videos`。
+远程发布验收结果是：GitHub `main` 已包含上述交付文件，New API lint 成功，golden fixture 21/21 成功，并且管理员可在渠道类型 **Task Plugin (61)** 中绑定 `coder-video-gateway` 后使用标准 `POST /v1/videos`。
