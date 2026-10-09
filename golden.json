@@ -1,0 +1,376 @@
+{
+  "cases": [
+    {
+      "name": "declares the standard gateway model set",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [
+        {
+          "body": {
+            "kind": "json",
+            "value": {
+              "model": "grok-imagine-video",
+              "prompt": "A paper boat on a rainy street",
+              "duration": 5,
+              "resolution": "720p"
+            }
+          },
+          "model": "grok-imagine-video",
+          "upstreamModel": "grok-imagine-video"
+        }
+      ],
+      "expected": {
+        "kind": "submit",
+        "model": "grok-imagine-video",
+        "action": "text_to_video",
+        "requestBody": {
+          "model": "grok-imagine-video",
+          "prompt": "A paper boat on a rainy street",
+          "duration": 5,
+          "resolution": "720p",
+          "aspect_ratio": "16:9"
+        }
+      }
+    },
+    {
+      "name": "normalizes Seedance through the standard endpoint",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [
+        {
+          "body": {
+            "kind": "json",
+            "value": {
+              "model": "seedance-2.0-offical",
+              "prompt": "A calm lake at sunrise",
+              "duration": 8,
+              "resolution": "1080p",
+              "input_reference": "https://media.example/still.png"
+            }
+          },
+          "model": "seedance-2.0-offical",
+          "upstreamModel": "seedance-2.0-offical"
+        }
+      ],
+      "expected": {
+        "kind": "submit",
+        "model": "seedance-2.0-offical",
+        "action": "image_to_video",
+        "requestBody": {
+          "model": "seedance-2.0-offical",
+          "prompt": "A calm lake at sunrise",
+          "duration": 8,
+          "resolution": "1080p",
+          "input_reference": "https://media.example/still.png"
+        }
+      }
+    },
+    {
+      "name": "accepts Grok multipart image input",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [
+        {
+          "body": {
+            "kind": "multipart",
+            "fields": {
+              "model": ["grok-imagine-video-1.5"],
+              "prompt": ["Animate the uploaded still"],
+              "duration": ["10"],
+              "resolution": ["1080p"]
+            },
+            "files": [
+              {
+                "ref": "request_file:input_reference",
+                "field": "input_reference",
+                "filename": "still.png",
+                "mimeType": "image/png",
+                "size": 1024
+              }
+            ]
+          },
+          "model": "grok-imagine-video-1.5",
+          "upstreamModel": "grok-imagine-video-1.5"
+        }
+      ],
+      "expected": {
+        "kind": "submit",
+        "model": "grok-imagine-video-1.5",
+        "action": "image_to_video",
+        "requestBody": {
+          "model": "grok-imagine-video-1.5",
+          "prompt": "Animate the uploaded still",
+          "duration": 10,
+          "resolution": "1080p",
+          "image": {
+            "url": {
+              "__fileRef": "request_file:input_reference",
+              "encoding": "dataUrl"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "rejects local Seedance image input",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [
+        {
+          "body": {
+            "kind": "multipart",
+            "fields": {
+              "model": ["seedance-2.0"],
+              "prompt": ["Animate the uploaded still"],
+              "duration": ["5"],
+              "resolution": ["720p"]
+            },
+            "files": [
+              {
+                "ref": "request_file:image",
+                "field": "image",
+                "filename": "still.png",
+                "mimeType": "image/png",
+                "size": 1024
+              }
+            ]
+          },
+          "model": "seedance-2.0",
+          "upstreamModel": "seedance-2.0"
+        }
+      ],
+      "expectedError": "requires a public HTTP(S) image URL"
+    },
+    {
+      "name": "reports Seedance reference video usage",
+      "hook": "extractUsage",
+      "args": [
+        {
+          "requestBody": {
+            "model": "seedance-2.0-fast-offical",
+            "prompt": "Continue the reference clip",
+            "duration": 6,
+            "resolution": "480p",
+            "reference_video_urls": ["https://media.example/reference.mp4"]
+          },
+          "model": "seedance-2.0-fast-offical",
+          "upstreamModel": "seedance-2.0-fast-offical"
+        }
+      ],
+      "expected": {
+        "duration": 6,
+        "resolution": "480p",
+        "image_count": 0,
+        "has_video": "true"
+      }
+    },
+    {
+      "name": "builds the standard gateway submit request",
+      "hook": "buildSubmitRequest",
+      "args": [
+        {
+          "requestBody": {
+            "model": "seedance-2.5",
+            "prompt": "A calm lake at sunrise",
+            "duration": 8,
+            "resolution": "1080p"
+          },
+          "model": "seedance-2.5",
+          "upstreamModel": "seedance-2.5",
+          "baseUrl": "https://coderapi.vip/",
+          "apiKey": "test-key"
+        }
+      ],
+      "expected": {
+        "url": "https://coderapi.vip/v1/videos",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer test-key"
+        },
+        "body": {
+          "model": "seedance-2.5",
+          "prompt": "A calm lake at sunrise",
+          "duration": 8,
+          "resolution": "1080p"
+        },
+        "action": "text_to_video"
+      }
+    },
+    {
+      "name": "builds query and content on the same standard endpoint",
+      "hook": "buildQueryRequest",
+      "args": [
+        {
+          "taskId": "task-123",
+          "baseUrl": "https://coderapi.vip",
+          "apiKey": "test-key"
+        }
+      ],
+      "expected": {
+        "url": "https://coderapi.vip/v1/videos/task-123",
+        "method": "GET",
+        "headers": { "Authorization": "Bearer test-key" }
+      }
+    },
+    {
+      "name": "maps completion to the OpenAI video task state",
+      "hook": "parseTaskResult",
+      "args": [
+        {},
+        {
+          "id": "task-123",
+          "status": "completed",
+          "content_url": "/v1/videos/task-123/content"
+        }
+      ],
+      "expected": {
+        "status": "SUCCESS",
+        "remoteUrl": "/v1/videos/task-123/content",
+        "progress": "100%"
+      }
+    },
+    {
+      "name": "builds the standard content proxy request",
+      "hook": "buildContentRequest",
+      "args": [
+        {
+          "artifactKey": "video",
+          "upstreamTaskId": "task-123",
+          "baseUrl": "https://coderapi.vip",
+          "apiKey": "test-key",
+          "clientRequest": { "method": "GET" }
+        }
+      ],
+      "expected": {
+        "url": "https://coderapi.vip/v1/videos/task-123/content",
+        "method": "GET",
+        "headers": { "Authorization": "Bearer test-key" }
+      }
+    },
+    {
+      "name": "renders a client-local content URL",
+      "hook": "protocols",
+      "path": ["openai_video", "render"],
+      "args": [
+        {},
+        {
+          "task_id": "public-task-123",
+          "status": "SUCCESS",
+          "data": {
+            "id": "remote-task-123",
+            "status": "completed",
+            "content_url": "https://coderapi.vip/v1/videos/remote-task-123/content"
+          }
+        }
+      ],
+      "expected": {
+        "id": "remote-task-123",
+        "status": "completed",
+        "content_url": "/v1/videos/public-task-123/content"
+      }
+    },
+    {
+      "name": "reports Grok image usage",
+      "hook": "extractUsage",
+      "args": [
+        {
+          "requestBody": {
+            "model": "grok-imagine-video-1.5",
+            "prompt": "Animate this image",
+            "duration": 8,
+            "resolution": "1080p",
+            "image": { "url": "https://media.example/still.png" }
+          },
+          "model": "grok-imagine-video-1.5",
+          "upstreamModel": "grok-imagine-video-1.5"
+        }
+      ],
+      "expected": {
+        "duration": 8,
+        "resolution": "1080p",
+        "image_count": 1
+      }
+    },
+    {
+      "name": "rejects Sora and unknown models",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [
+        {
+          "body": {
+            "kind": "json",
+            "value": {
+              "model": "sora-2",
+              "prompt": "A paper boat",
+              "duration": 4,
+              "resolution": "720p"
+            }
+          },
+          "model": "sora-2",
+          "upstreamModel": "sora-2"
+        }
+      ],
+      "expectedError": "unsupported video model"
+    },
+    {
+      "name": "accepts the remaining Seedance models",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{"model":"seedance-2.0","prompt":"A slow camera move","duration":4,"resolution":"720p"}},"model":"seedance-2.0","upstreamModel":"seedance-2.0"}],
+      "expected": {"kind":"submit","model":"seedance-2.0","action":"text_to_video","requestBody":{"model":"seedance-2.0","prompt":"A slow camera move","duration":4,"resolution":"720p"}}
+    },
+    {
+      "name": "accepts Seedance 2.5",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{"model":"seedance-2.5","prompt":"A slow camera move","duration":4,"resolution":"1080p"}},"model":"seedance-2.5","upstreamModel":"seedance-2.5"}],
+      "expected": {"kind":"submit","model":"seedance-2.5","action":"text_to_video","requestBody":{"model":"seedance-2.5","prompt":"A slow camera move","duration":4,"resolution":"1080p"}}
+    },
+    {
+      "name": "accepts Seedance mini official",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{"model":"seedance-2.0-mini-offical","prompt":"A slow camera move","duration":4,"resolution":"480p"}},"model":"seedance-2.0-mini-offical","upstreamModel":"seedance-2.0-mini-offical"}],
+      "expected": {"kind":"submit","model":"seedance-2.0-mini-offical","action":"text_to_video","requestBody":{"model":"seedance-2.0-mini-offical","prompt":"A slow camera move","duration":4,"resolution":"480p"}}
+    },
+    {
+      "name": "accepts multipart arrays for Seedance references",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"multipart","fields":{"model":["seedance-2.0-offical"],"prompt":["Animate these references"],"duration":["5"],"resolution":["720p"],"reference_image_urls":["https://media.example/a.png","https://media.example/b.png"]},"files":[]},"model":"seedance-2.0-offical","upstreamModel":"seedance-2.0-offical"}],
+      "expected": {"kind":"submit","model":"seedance-2.0-offical","action":"image_to_video","requestBody":{"model":"seedance-2.0-offical","prompt":"Animate these references","duration":5,"resolution":"720p","reference_image_urls":["https://media.example/a.png","https://media.example/b.png"]}}
+    },
+    {
+      "name": "preserves an alias while submitting the mapped upstream model",
+      "hook": "buildSubmitRequest",
+      "args": [{"requestBody":{"model":"customer-video","prompt":"An alias request","duration":4,"resolution":"720p"},"model":"customer-video","upstreamModel":"grok-imagine-video-1.5","baseUrl":"https://coderapi.vip","apiKey":"test-key"}],
+      "expected": {"url":"https://coderapi.vip/v1/videos","method":"POST","headers":{"Content-Type":"application/json","Authorization":"Bearer test-key"},"body":{"model":"grok-imagine-video-1.5","prompt":"An alias request","duration":4,"resolution":"720p","aspect_ratio":"16:9"},"action":"text_to_video"}
+    },
+    {
+      "name": "keeps a Grok multipart placeholder for the host to inline",
+      "hook": "buildSubmitRequest",
+      "args": [{"requestBody":{"model":"grok-imagine-video-1.5","prompt":"Animate the upload","duration":6,"resolution":"1080p","image":{"url":{"__fileRef":"request_file:input_reference","encoding":"dataUrl"}}},"model":"grok-imagine-video-1.5","upstreamModel":"grok-imagine-video-1.5","files":[{"ref":"request_file:input_reference","field":"input_reference","filename":"still.png","mimeType":"image/png","size":1024}],"baseUrl":"https://coderapi.vip","apiKey":"test-key"}],
+      "expected": {"url":"https://coderapi.vip/v1/videos","method":"POST","headers":{"Content-Type":"application/json","Authorization":"Bearer test-key"},"body":{"model":"grok-imagine-video-1.5","prompt":"Animate the upload","duration":6,"resolution":"1080p","image":{"url":{"__fileRef":"request_file:input_reference","encoding":"dataUrl"}}},"action":"image_to_video"}
+    },
+    {
+      "name": "settles the actual Grok video duration",
+      "hook": "extractUsageOnComplete",
+      "args": [{"model":"grok-imagine-video-1.5","upstreamModel":"grok-imagine-video-1.5"},{},{"status":"completed","resolution":"1080p","video":{"duration":9}}],
+      "expected": {"duration":9,"resolution":"1080p"}
+    },
+    {
+      "name": "ignores invalid completion facts",
+      "hook": "extractUsageOnComplete",
+      "args": [{"model":"grok-imagine-video","upstreamModel":"grok-imagine-video"},{},{"status":"completed","resolution":"1080p","video":{"duration":99}}],
+      "expected": {}
+    },
+    {
+      "name": "rejects 1080p for classic Grok",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{"model":"grok-imagine-video","prompt":"A paper boat","duration":4,"resolution":"1080p"}},"model":"grok-imagine-video","upstreamModel":"grok-imagine-video"}],
+      "expectedError": "use 480p, 720p"
+    }
+  ]
+}

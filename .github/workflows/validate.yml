@@ -1,0 +1,21 @@
+name: Validate plugin
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check JavaScript syntax
+        run: node --check plugin.js
+      - name: Check fixture JSON
+        run: node -e "JSON.parse(require('fs').readFileSync('golden.json','utf8'))"
