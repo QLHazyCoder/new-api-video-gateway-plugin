@@ -371,6 +371,33 @@
       "path": ["openai_video", "decodeRequest"],
       "args": [{"body":{"kind":"json","value":{"model":"grok-imagine-video","prompt":"A paper boat","duration":4,"resolution":"1080p"}},"model":"grok-imagine-video","upstreamModel":"grok-imagine-video"}],
       "expectedError": "use 480p, 720p"
+    },
+    {
+      "name": "accepts MiniMax H3 public image and audio references",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{"model":"H3","prompt":"Animate the references","duration":4,"resolution":"720p","aspect_ratio":"16:9","reference_image_urls":["https://media.example/still.png"],"reference_audio_urls":["https://media.example/voice.mp3"]}},"model":"H3","upstreamModel":"H3"}],
+      "expected": {"kind":"submit","model":"H3","action":"image_to_video","requestBody":{"model":"H3","prompt":"Animate the references","duration":4,"resolution":"720p","aspect_ratio":"16:9","reference_image_urls":["https://media.example/still.png"],"reference_audio_urls":["https://media.example/voice.mp3"]}}
+    },
+    {
+      "name": "reports H3 duration image and audio usage",
+      "hook": "extractUsage",
+      "args": [{"requestBody":{"model":"H3","prompt":"Animate the references","duration":15,"resolution":"720p","reference_image_urls":["https://media.example/a.png","https://media.example/b.png"],"reference_audio_urls":["https://media.example/a.mp3","https://media.example/b.mp3"]},"model":"H3","upstreamModel":"H3"}],
+      "expected": {"duration":15,"resolution":"720p","image_count":2,"audio_count":2}
+    },
+    {
+      "name": "rejects H3 1080p",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{"model":"H3","prompt":"A calm lake","duration":4,"resolution":"1080p"}},"model":"H3","upstreamModel":"H3"}],
+      "expectedError": "use 720p"
+    },
+    {
+      "name": "rejects a fourth H3 audio reference",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{"model":"H3","prompt":"A calm lake","duration":4,"resolution":"720p","reference_audio_urls":["https://media.example/1.mp3","https://media.example/2.mp3","https://media.example/3.mp3","https://media.example/4.mp3"]}},"model":"H3","upstreamModel":"H3"}],
+      "expectedError": "at most 3"
     }
   ]
 }

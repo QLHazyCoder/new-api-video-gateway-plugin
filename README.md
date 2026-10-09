@@ -10,7 +10,7 @@
 
 ## 支持模型
 
-当前只保留以下 7 个模型，不包含 Sora：
+当前只保留以下 8 个模型，不包含 Sora：
 
 - `grok-imagine-video`
 - `grok-imagine-video-1.5`
@@ -19,19 +19,20 @@
 - `seedance-2.0-fast-offical`
 - `seedance-2.0-mini-offical`
 - `seedance-2.0-offical`
+- `H3`
 
 模型列表是插件的显式白名单，其他模型会在请求解码阶段被拒绝。
 
-能力约束如下：`grok-imagine-video` 只支持 480p/720p；`grok-imagine-video-1.5` 支持 480p/720p/1080p；`seedance-2.0`、`seedance-2.0-fast-offical`、`seedance-2.0-mini-offical` 支持 480p/720p；`seedance-2.5` 和 `seedance-2.0-offical` 支持 480p/720p/1080p。Grok 时长为 1–15 秒，Seedance 时长为 1–3600 秒。
+能力约束如下：`grok-imagine-video` 只支持 480p/720p；`grok-imagine-video-1.5` 支持 480p/720p/1080p；`seedance-2.0`、`seedance-2.0-fast-offical`、`seedance-2.0-mini-offical` 支持 480p/720p；`seedance-2.5` 和 `seedance-2.0-offical` 支持 480p/720p/1080p；`H3` 只支持 720p、4–15 秒、最多 9 张图片和 3 条音频参考。Grok 时长为 1–15 秒，Seedance 时长为 1–3600 秒。
 
 ## New API 配置
 
-1. 在根管理员的任务插件页面上传 `plugin.js`，启用 `coder-video-gateway@1.0.0`。
+1. 在根管理员的任务插件页面上传 `plugin.js`，启用 `coder-video-gateway@1.0.1`。
 2. 新建渠道，渠道类型选择 **Task Plugin**，不要选择 OpenAI 类型。
 3. 任务插件选择 `coder-video-gateway`。
 4. Base URL 填写网关地址，例如 `https://coderapi.vip`。
 5. 渠道密钥填写该网关要求的密钥。
-6. 在渠道模型中只启用上面的 7 个模型，并在模型定价中分别配置价格表达式。
+6. 在渠道模型中只启用上面的 8 个模型，并在模型定价中分别配置价格表达式。
 
 渠道类型是 **Task Plugin (61)**。插件的默认 Base URL 是 `https://coderapi.vip`，也可以在渠道中填写实际网关地址；渠道密钥只填写网关 API key。安装目标需要支持 Task Plugin v1、`usageProfiles`、文件占位符和视频 artifact。
 
@@ -49,6 +50,7 @@ Seedance 模型的上游要求公网图片 URL，因此插件会拒绝本地 mul
 
 - Grok：`duration`、`resolution`、`image_count`
 - Seedance：`duration`、`resolution`、`image_count`、`has_video`
+- H3：`duration`、`resolution`、`image_count`、`audio_count`
 
 价格由 New API 模型定价页面配置，插件不会覆盖现有价格，也不会写入任何供应商价格。
 
@@ -61,7 +63,7 @@ new-api plugin lint /opt/qlh-main/new-api-video-gateway-plugin/plugin.js
 new-api plugin test /opt/qlh-main/new-api-video-gateway-plugin/plugin.js --fixture /opt/qlh-main/new-api-video-gateway-plugin/golden.json
 ```
 
-测试夹具覆盖 7 个模型、JSON/multipart 解码、Grok 本地图片、Seedance 本地图片拒绝、标准 `/v1/videos` 提交/查询/内容请求、状态映射、渲染和计量事实。
+测试夹具覆盖 8 个模型、JSON/multipart 解码、Grok 本地图片、志奇公网图片与 H3 多图多音频限制、标准 `/v1/videos` 提交/查询/内容请求、状态映射、渲染和计量事实。
 
 ## 客户调用示例
 

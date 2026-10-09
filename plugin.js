@@ -1,6 +1,8 @@
 const GROK_CLASSIC = "grok-imagine-video";
 const GROK_15 = "grok-imagine-video-1.5";
 const GROK_MODELS = [GROK_CLASSIC, GROK_15];
+const H3_MODEL = "H3";
+const H3_ASPECT_RATIOS = ["9:16", "16:9", "4:3", "3:4", "1:1"];
 
 const ZHIQI_MODELS = [
   "seedance-2.0",
@@ -8,6 +10,7 @@ const ZHIQI_MODELS = [
   "seedance-2.0-fast-offical",
   "seedance-2.0-mini-offical",
   "seedance-2.0-offical",
+  H3_MODEL,
 ];
 
 const VIDEO_MODELS = GROK_MODELS.concat(ZHIQI_MODELS);
@@ -74,6 +77,13 @@ const IMAGE_COUNT_FIELD = {
   description: { en: "Input image unit price", zh: "输入图片单价" },
 };
 
+const AUDIO_COUNT_FIELD = {
+  type: "number",
+  unit: "count",
+  unitLabel: { en: "audio", zh: "条" },
+  description: { en: "Input audio unit price", zh: "输入音频单价" },
+};
+
 const HAS_VIDEO_FIELD = {
   enum: ["true", "false"],
   enumLabels: {
@@ -110,10 +120,10 @@ export const meta = {
   name: "Coder Video Gateway",
   icon: "text:CV",
   description: {
-    en: "Standard OpenAI video gateway for Grok Imagine and Seedance models",
-    zh: "通过标准 OpenAI 视频接口提供 Grok Imagine 与 Seedance 模型",
+    en: "Standard OpenAI video gateway for Grok Imagine, Seedance, and MiniMax H3 models",
+    zh: "通过标准 OpenAI 视频接口提供 Grok Imagine、Seedance 和 MiniMax H3 模型",
   },
-  version: "1.0.0",
+  version: "1.0.1",
   author: { name: "QLHazyCoder" },
   website: "https://coderapi.vip",
   baseUrl: "https://coderapi.vip",
@@ -151,6 +161,14 @@ export const meta = {
       examples: [
         { label: "720p 4s", facts: { duration: 4, resolution: "720p", image_count: 0, has_video: "false" } },
         { label: "1080p 8s · reference video", facts: { duration: 8, resolution: "1080p", image_count: 0, has_video: "true" } },
+      ],
+    },
+    {
+      models: [H3_MODEL],
+      schema: Object.assign(usageSchema(["720p"], false), { audio_count: AUDIO_COUNT_FIELD }),
+      examples: [
+        { label: "720p 4s", facts: { duration: 4, resolution: "720p", image_count: 0, audio_count: 0 } },
+        { label: "720p 15s · 9 images · 3 audio", facts: { duration: 15, resolution: "720p", image_count: 9, audio_count: 3 } },
       ],
     },
   ],
@@ -225,8 +243,10 @@ function integerValue(value, field, min, max) {
 
 function durationFor(request, model) {
   const values = [];
-  if (hasValue(request.seconds)) values.push(integerValue(request.seconds, "seconds", 1, isGrok(model) ? 15 : 3600));
-  if (hasValue(request.duration)) values.push(integerValue(request.duration, "duration", 1, isGrok(model) ? 15 : 3600));
+  const minimum = model === H3_MODEL ? 4 : 1;
+  const maximum = isGrok(model) || model === H3_MODEL ? 15 : 3600;
+  if (hasValue(request.seconds)) values.push(integerValue(request.seconds, "seconds", minimum, maximum));
+  if (hasValue(request.duration)) values.push(integerValue(request.duration, "duration", minimum, maximum));
   if (values.length > 1 && values[0] !== values[1]) throw new Error("seconds and duration must match when both are provided");
   if (!values.length) throw new Error("seconds or duration is required for video generation");
   return values[0];
@@ -235,7 +255,7 @@ function durationFor(request, model) {
 function normalizeResolution(value, model) {
   const raw = trimmed(value).toLowerCase();
   const resolution = raw === "480" ? "480p" : raw === "720" ? "720p" : raw === "1080" ? "1080p" : raw;
-  const allowed = isGrok(model)
+  const allowed = model === H3_MODEL ? ["720p"] : isGrok(model)
     ? model === GROK_CLASSIC
       ? ["480p", "720p"]
       : GROK_RESOLUTIONS
@@ -345,7 +365,7 @@ function imageFromRequest(request, model, uploadedFile) {
   }
   if (uploadedFile) {
     if (isZhiqi(model)) {
-      throw new Error("Seedance image-to-video requires a public HTTP(S) image URL; upload the image to an image host first");
+      throw new Error("ZeeQi image-to-video requires a public HTTP(S) image URL; upload the image to an image host first");
     }
     const existing = candidates[0];
     const existingRef = existing && isObject(existing.value) && isObject(existing.value.url) ? trimmed(existing.value.url.__fileRef) : "";
@@ -387,6 +407,10 @@ function imageCount(request) {
   if (request.first_frame_image_url) count += 1;
   if (request.last_frame_image_url) count += 1;
   return count;
+}
+
+function audioCount(request) {
+  return Array.isArray(request.reference_audio_urls) ? request.reference_audio_urls.length : 0;
 }
 
 function hasReferenceVideo(request) {
@@ -436,6 +460,11 @@ function normalizeGrokRequest(request, model, uploadedFile) {
 }
 
 function normalizeZhiqiRequest(request, model, uploadedFile) {
+  if (model === H3_MODEL) {
+    for (const field of ["reference_video_urls", "first_frame_image_url", "last_frame_image_url", "size"]) {
+      if (hasOwn(request, field) && hasValue(request[field])) throw new Error(field + " is not supported by H3");
+    }
+  }
   const image = imageFromRequest(request, model, uploadedFile);
   const normalized = {
     model: model,
@@ -446,7 +475,12 @@ function normalizeZhiqiRequest(request, model, uploadedFile) {
   const aspectRatio = aliasValue(request, ["aspect_ratio", "aspectRatio", "ratio"], "aspect ratio", function (value, field) {
     return stringValue(value, field);
   });
-  if (aspectRatio !== undefined) normalized.aspect_ratio = aspectRatio;
+  if (aspectRatio !== undefined) {
+    if (model === H3_MODEL && H3_ASPECT_RATIOS.indexOf(aspectRatio) < 0) {
+      throw new Error("aspect_ratio must be one of " + H3_ASPECT_RATIOS.join(", ") + " for H3");
+    }
+    normalized.aspect_ratio = aspectRatio;
+  }
   if (image) normalized.input_reference = image.value;
   const referenceImages = aliasValue(request, ["reference_image_urls", "images", "image_urls"], "reference images", function (value, field) {
     return publicURLArray(value, field);
@@ -455,6 +489,8 @@ function normalizeZhiqiRequest(request, model, uploadedFile) {
   for (const field of ["reference_video_urls", "reference_audio_urls"]) {
     if (hasOwn(request, field) && hasValue(request[field])) normalized[field] = publicURLArray(request[field], field);
   }
+  if (model === H3_MODEL && imageCount(normalized) > 9) throw new Error("H3 accepts at most 9 reference images");
+  if (model === H3_MODEL && audioCount(normalized) > 3) throw new Error("H3 accepts at most 3 reference audio URLs");
   for (const field of ["size", "negative_prompt", "first_frame_image_url", "last_frame_image_url"]) {
     const value = optionalString(request, field);
     if (value !== undefined) normalized[field] = field.endsWith("_url") ? publicURL(value, field) : value;
@@ -463,7 +499,7 @@ function normalizeZhiqiRequest(request, model, uploadedFile) {
     if (hasOwn(request, field)) normalized[field] = booleanValue(request[field], field);
   }
   if (hasOwn(request, "seed")) normalized.seed = integerValue(request.seed, "seed", 0);
-  if (hasOwn(request, "n")) normalized.n = integerValue(request.n, "n", 1, 16);
+  if (hasOwn(request, "n")) normalized.n = integerValue(request.n, "n", 1, model === H3_MODEL ? 1 : 16);
   if (hasOwn(request, "grid_strength")) {
     if (typeof request.grid_strength !== "number" && typeof request.grid_strength !== "string") {
       throw new Error("grid_strength must be between 0 and 1");
@@ -598,7 +634,8 @@ export function extractUsage(ctx) {
     resolution: normalized.resolution,
     image_count: imageCount(normalized),
   };
-  if (isZhiqi(resolved.upstreamModel)) facts.has_video = hasReferenceVideo(normalized) ? "true" : "false";
+  if (resolved.upstreamModel === H3_MODEL) facts.audio_count = audioCount(normalized);
+  else if (isZhiqi(resolved.upstreamModel)) facts.has_video = hasReferenceVideo(normalized) ? "true" : "false";
   return facts;
 }
 
@@ -621,7 +658,7 @@ export function extractUsageOnComplete(ctx, _result, body) {
   for (const raw of durationCandidates) {
     if (!hasValue(raw)) continue;
     try {
-      facts.duration = integerValue(raw, "upstream video duration", 1, isGrok(model) ? 15 : 3600);
+      facts.duration = integerValue(raw, "upstream video duration", model === H3_MODEL ? 4 : 1, isGrok(model) || model === H3_MODEL ? 15 : 3600);
       break;
     } catch (_error) {
       // An invalid vendor fact must not replace the reserved request fact.
