@@ -398,6 +398,86 @@
       "path": ["openai_video", "decodeRequest"],
       "args": [{"body":{"kind":"json","value":{"model":"H3","prompt":"A calm lake","duration":4,"resolution":"720p","reference_audio_urls":["https://media.example/1.mp3","https://media.example/2.mp3","https://media.example/3.mp3","https://media.example/4.mp3"]}},"model":"H3","upstreamModel":"H3"}],
       "expectedError": "at most 3"
+    },
+    {
+      "name": "accepts RollDek Seedance 2.0 at 720p",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-0-260128","prompt":"A slow camera move","duration":15,"resolution":"720p"}},"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"}],
+      "expected": {"kind":"submit","model":"doubao-seedance-2-0-260128","action":"text_to_video","requestBody":{"model":"doubao-seedance-2-0-260128","prompt":"A slow camera move","resolution":"720p","aspect_ratio":"16:9","duration":15}}
+    },
+    {
+      "name": "accepts RollDek Seedance 2.0 fast at its duration limit",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-0-fast-260128","prompt":"A slow camera move","duration":15,"resolution":"720p"}},"model":"doubao-seedance-2-0-fast-260128","upstreamModel":"doubao-seedance-2-0-fast-260128"}],
+      "expected": {"kind":"submit","model":"doubao-seedance-2-0-fast-260128","action":"text_to_video","requestBody":{"model":"doubao-seedance-2-0-fast-260128","prompt":"A slow camera move","resolution":"720p","aspect_ratio":"16:9","duration":15}}
+    },
+    {
+      "name": "accepts RollDek Seedance 2.0 mini at its duration limit",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-0-mini-260615","prompt":"A slow camera move","duration":15,"resolution":"720p"}},"model":"doubao-seedance-2-0-mini-260615","upstreamModel":"doubao-seedance-2-0-mini-260615"}],
+      "expected": {"kind":"submit","model":"doubao-seedance-2-0-mini-260615","action":"text_to_video","requestBody":{"model":"doubao-seedance-2-0-mini-260615","prompt":"A slow camera move","resolution":"720p","aspect_ratio":"16:9","duration":15}}
+    },
+    {
+      "name": "accepts RollDek Seedance 2.5 at its duration limit",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-5-260628","prompt":"A slow camera move","duration":30,"resolution":"720p"}},"model":"doubao-seedance-2-5-260628","upstreamModel":"doubao-seedance-2-5-260628"}],
+      "expected": {"kind":"submit","model":"doubao-seedance-2-5-260628","action":"text_to_video","requestBody":{"model":"doubao-seedance-2-5-260628","prompt":"A slow camera move","resolution":"720p","aspect_ratio":"16:9","duration":30}}
+    },
+    {
+      "name": "accepts RollDek authorized image asset IDs",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-0-260128","prompt":"Animate the still","duration":6,"resolution":"720p","input_reference":"asset://ast-image_123"}},"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"}],
+      "expected": {"kind":"submit","model":"doubao-seedance-2-0-260128","action":"image_to_video","requestBody":{"model":"doubao-seedance-2-0-260128","prompt":"Animate the still","resolution":"720p","aspect_ratio":"16:9","duration":6,"input_reference":"asset://ast-image_123"}}
+    },
+    {
+      "name": "rejects RollDek local multipart images",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"multipart","fields":{"model":["doubao-seedance-2-0-260128"],"prompt":["Animate the upload"],"duration":["6"],"resolution":["720p"]},"files":[{"ref":"request_file:image","field":"image","filename":"still.png","mimeType":"image/png","size":1024}]},"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"}],
+      "expectedError": "requires a public HTTPS image URL"
+    },
+    {
+      "name": "rejects RollDek Seedance 1080p",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-0-260128","prompt":"A slow camera move","duration":6,"resolution":"1080p"}},"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"}],
+      "expectedError": "use 720p"
+    },
+    {
+      "name": "rejects RollDek Seedance duration above the model limit",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-5-260628","prompt":"A slow camera move","duration":31,"resolution":"720p"}},"model":"doubao-seedance-2-5-260628","upstreamModel":"doubao-seedance-2-5-260628"}],
+      "expectedError": "duration must be an integer between 4 and 30"
+    },
+    {
+      "name": "estimates RollDek Seedance token usage for a reference video",
+      "hook": "extractUsage",
+      "args": [{"requestBody":{"model":"doubao-seedance-2-0-260128","prompt":"Continue the clip","duration":6,"resolution":"720p","reference_video_urls":["https://media.example/reference.mp4"]},"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"}],
+      "expected": {"tokens":129600,"video_input":"video"}
+    },
+    {
+      "name": "uses RollDek Seedance model maximum when duration is omitted",
+      "hook": "extractUsage",
+      "args": [{"requestBody":{"model":"doubao-seedance-2-5-260628","prompt":"A slow camera move","resolution":"720p"},"model":"doubao-seedance-2-5-260628","upstreamModel":"doubao-seedance-2-5-260628"}],
+      "expected": {"tokens":648000,"video_input":"none"}
+    },
+    {
+      "name": "uses source-reported RollDek Seedance tokens on completion",
+      "hook": "extractUsageOnComplete",
+      "args": [{"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"},{},{"status":"completed","usage":{"total_tokens":111222},"duration":6,"resolution":"720p"}],
+      "expected": {"tokens":111222}
+    },
+    {
+      "name": "ignores out-of-range RollDek completion token usage",
+      "hook": "extractUsageOnComplete",
+      "args": [{"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"},{},{"status":"completed","usage":{"total_tokens":2147483648}}],
+      "expected": {}
     }
   ]
 }
