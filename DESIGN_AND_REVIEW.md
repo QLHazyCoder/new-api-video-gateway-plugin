@@ -121,14 +121,14 @@ New API openai_video 主机协议
 - [x] 在 `main` 提交并推送插件源文件。
 - [x] 读取远程提交和 Actions 状态，确认远程内容与本地提交一致。
 
-### 阶段五：RollDek 原生 content 兼容 — 实现与本地验证已完成
+### 阶段五：RollDek 原生 content 兼容 — 已完成
 
 - [x] 四个 RollDek 模型新增 Volcano-shaped `content` JSON 输入，维持标准 `/v1/videos` 公共路径。
 - [x] 严格限制在 RollDek 上游已文档化的字段、素材角色、720p 分辨率和固定比例；原简化 JSON 不移除。
 - [x] 新增解码、上游转发、参考视频计量、其他模型拒绝和不支持 `adaptive` 的 fixtures。
 - [x] 更新 README、下游自研平台指南和本文件的模型数、请求格式及能力边界。
 - [x] New API lint 通过，fixture `42/42`、Node 语法检查、JSON 解析和 `git diff --check` 通过。
-- [ ] 提交并推送 GitHub `main`，确认远程 SHA 与本地一致。
+- [x] 提交并推送 GitHub `main`，远程与本地 SHA 均为 `f860fa61747bc7d48af1b549996dbac468b31aad`。
 
 ## 阶段自检记录
 
@@ -164,4 +164,4 @@ New API openai_video 主机协议
 
 当前实现符合 New API Task Plugin v1 的单文件沙箱边界和 `openai_video` 主机协议边界。12 个模型、模型映射、分辨率能力、图片/视频/音频输入、轮询、artifact、完成态计量均有显式逻辑和 fixture 覆盖。四个 RollDek 模型接受旧简化 body 与火山 `content` 结构子集，不承诺未被 RollDek 文档支持的所有官方字段。插件仍依赖宿主支持 Task Plugin v1、usage profiles、文件占位符和视频 artifact；安装前应确认目标 New API 构建包含这些能力。
 
-历史发布验收结果是：GitHub `main` 已包含 `1.0.1` 阶段的插件交付，New API lint 成功，并且管理员可在渠道类型 **Task Plugin (61)** 中绑定 `coder-video-gateway` 后使用标准 `POST /v1/videos`。本次 `1.0.3` 更新的远程 SHA 与 Actions 验收将在阶段五推送后补记。
+本次 `coder-video-gateway@1.0.3` 已推送至 GitHub `main`，远程 SHA 为 `f860fa61747bc7d48af1b549996dbac468b31aad`。New API lint、42/42 golden fixture、Node 语法检查、JSON 解析和差异空白检查均通过；GitHub Actions 未在本地验证，未以源码推送代替线上 Task Plugin 安装或发布。
