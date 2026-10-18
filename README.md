@@ -31,7 +31,7 @@
 
 ## New API 配置
 
-1. 在根管理员的任务插件页面上传 `plugin.js`，启用 `coder-video-gateway@1.0.2`。
+1. 在根管理员的任务插件页面上传 `plugin.js`，启用 `coder-video-gateway@1.0.3`。
 2. 新建渠道，渠道类型选择 **Task Plugin**，不要选择 OpenAI 类型。
 3. 任务插件选择 `coder-video-gateway`。
 4. Base URL 填写网关地址，例如 `https://coderapi.vip`。
@@ -47,6 +47,8 @@
 Grok 模型接受标准 JSON 图片 URL，也接受标准 multipart 上传；上传文件会在网关请求中转换为受控的 data URL 占位符。
 
 ZeeQi Seedance 模型的上游要求公网图片 URL，因此插件会拒绝本地 multipart 图片和非 HTTP(S) 图片地址。RollDek Seedance 接受 HTTPS 图片 URL 或授权的 `asset://ast-...` 资源 ID，也拒绝本地 multipart 图片。请先把图片放到图床，再把地址放到 `input_reference`、`image` 或 `image_url`。
+
+RollDek Seedance 还接受火山方舟风格的 JSON `content` 数组，请求仍发送到标准 `POST /v1/videos`。此格式仅用于四个 RollDek 模型，支持 `text`、`image_url`、`video_url`、`audio_url` 内容项，以及 `duration`、`resolution`、`ratio`、`generate_audio`、`watermark`、`seed`。它只实现 RollDek 文档支持的参数子集：该渠道固定为 `720p`，宽高比限于 `16:9`、`9:16`、`1:1`、`21:9`、`4:3`、`3:4`；`adaptive`、`duration: -1` 和未列出的火山参数不会透传。详细格式见下游接入文档。
 
 ## 计量与价格
 
@@ -68,9 +70,11 @@ new-api plugin lint /opt/qlh-main/new-api-video-gateway-plugin/plugin.js
 new-api plugin test /opt/qlh-main/new-api-video-gateway-plugin/plugin.js --fixture /opt/qlh-main/new-api-video-gateway-plugin/golden.json
 ```
 
-测试夹具覆盖 12 个模型、RollDek 720p/时长/token 计量、JSON/multipart 解码、Grok 本地图片、Seedance 公网图片与 H3 多图多音频限制、标准 `/v1/videos` 提交/查询/内容请求、状态映射、渲染和计量事实。
+测试夹具覆盖 12 个模型、RollDek 720p/时长/token 计量和火山格式 `content` 请求、JSON/multipart 解码、Grok 本地图片、Seedance 公网图片与 H3 多图多音频限制、标准 `/v1/videos` 提交/查询/内容请求、状态映射、渲染和计量事实。
 
 ## 客户调用示例
+
+下游客户自研平台接入说明（通过本服务调用 Seedance 视频模型）见 [`docs/downstream-seedance-integration.md`](docs/downstream-seedance-integration.md)。
 
 ```sh
 curl https://你的-new-api.example/v1/videos \

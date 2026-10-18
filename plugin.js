@@ -96,6 +96,16 @@ const ROLLDEK_SUPPORTED_FIELDS = {
   watermark: true,
   seed: true,
 };
+const ROLLDEK_NATIVE_FIELDS = {
+  model: true,
+  content: true,
+  duration: true,
+  resolution: true,
+  ratio: true,
+  generate_audio: true,
+  watermark: true,
+  seed: true,
+};
 
 const DURATION_FIELD = {
   type: "number",
@@ -172,7 +182,7 @@ export const meta = {
     en: "Standard OpenAI video gateway for Grok Imagine, Seedance, RollDek, and MiniMax H3 models",
     zh: "通过标准 OpenAI 视频接口提供 Grok Imagine、Seedance、RollDek 和 MiniMax H3 模型",
   },
-  version: "1.0.2",
+  version: "1.0.3",
   author: { name: "QLHazyCoder" },
   website: "https://coderapi.vip",
   baseUrl: "https://coderapi.vip",
@@ -462,6 +472,9 @@ function normalizeAspectRatio(request, hasImage) {
 }
 
 function imageCount(request) {
+  if (Array.isArray(request.content)) {
+    return request.content.filter(function (item) { return item.type === "image_url"; }).length;
+  }
   let count = 0;
   if (request.image || request.input_reference) count += 1;
   if (Array.isArray(request.reference_image_urls)) count += request.reference_image_urls.length;
@@ -471,6 +484,9 @@ function imageCount(request) {
 }
 
 function audioCount(request) {
+  if (Array.isArray(request.content)) {
+    return request.content.filter(function (item) { return item.type === "audio_url"; }).length;
+  }
   return Array.isArray(request.reference_audio_urls) ? request.reference_audio_urls.length : 0;
 }
 
@@ -479,6 +495,9 @@ function estimateRollDekTokens(duration) {
 }
 
 function hasReferenceVideo(request) {
+  if (Array.isArray(request.content)) {
+    return request.content.some(function (item) { return item.type === "video_url" && item.role === "reference_video"; });
+  }
   return Array.isArray(request.reference_video_urls) && request.reference_video_urls.length > 0;
 }
 
@@ -600,6 +619,103 @@ function rollDekAssetURLArray(value, field) {
   });
 }
 
+function assertExactKeys(value, allowed, field) {
+  for (const key of Object.keys(value)) {
+    if (!hasOwn(allowed, key)) throw new Error(field + " contains unsupported field: " + key);
+  }
+}
+
+function normalizeRollDekContent(value) {
+  if (!Array.isArray(value) || value.length === 0) throw new Error("content must be a non-empty array");
+  const content = value.map(function (item, index) {
+    const field = "content[" + index + "]";
+    assertObject(item, field + " must be an object");
+    const type = stringValue(item.type, field + ".type");
+    if (type === "text") {
+      assertExactKeys(item, { type: true, text: true }, field);
+      return { type: "text", text: stringValue(item.text, field + ".text") };
+    }
+
+    const media = {
+      image_url: { field: "image_url", roles: ["reference_image", "first_frame", "last_frame"] },
+      video_url: { field: "video_url", roles: ["reference_video"] },
+      audio_url: { field: "audio_url", roles: ["reference_audio"] },
+    }[type];
+    if (!media) throw new Error(field + ".type must be text, image_url, video_url, or audio_url");
+    const allowed = { type: true, role: true };
+    allowed[media.field] = true;
+    assertExactKeys(item, allowed, field);
+    if (media.roles.indexOf(item.role) < 0) {
+      throw new Error(field + ".role must be one of " + media.roles.join(", "));
+    }
+    const address = assertObject(item[media.field], field + "." + media.field + " must be an object");
+    assertExactKeys(address, { url: true }, field + "." + media.field);
+    const normalized = { type: type, role: item.role };
+    normalized[media.field] = { url: rollDekAssetURL(address.url, field + "." + media.field + ".url") };
+    return normalized;
+  });
+
+  if (!content.some(function (item) { return item.type === "text"; })) {
+    throw new Error("content must include at least one non-empty text item");
+  }
+  const images = content.filter(function (item) { return item.type === "image_url"; });
+  const firstFrames = images.filter(function (item) { return item.role === "first_frame"; });
+  const lastFrames = images.filter(function (item) { return item.role === "last_frame"; });
+  const referenceImages = images.filter(function (item) { return item.role === "reference_image"; });
+  const hasFrames = firstFrames.length > 0 || lastFrames.length > 0;
+  const hasVideo = content.some(function (item) { return item.role === "reference_video"; });
+  if (firstFrames.length > 1 || lastFrames.length > 1 || (hasFrames && images.length > 2)) {
+    throw new Error("first/last-frame mode accepts at most two images, with one image per frame role");
+  }
+  if (hasFrames && referenceImages.length > 0) {
+    throw new Error("first/last-frame mode cannot be combined with other reference images");
+  }
+  if (hasFrames && hasVideo) throw new Error("first/last-frame mode cannot be combined with reference video");
+  return content;
+}
+
+function normalizeRollDekNativeRequest(request, model, uploadedFile) {
+  for (const field of Object.keys(request)) {
+    if (!hasOwn(ROLLDEK_NATIVE_FIELDS, field)) throw new Error("unsupported field: " + field);
+  }
+  if (uploadedFile) throw new Error("RollDek Seedance requires public reference URLs; local uploads are not supported");
+  if (!hasValue(request.model)) throw new Error("model is required");
+
+  const config = ROLLDEK_CONFIG[model];
+  let duration;
+  if (hasOwn(request, "duration")) {
+    if (typeof request.duration !== "number") throw new Error("duration must be an integer");
+    duration = integerValue(request.duration, "duration", 4, config.maxDuration);
+  }
+  const resolution = stringValue(request.resolution, "resolution");
+  if (resolution !== "720p") throw new Error("resolution is not supported by " + model + "; use 720p");
+
+  let ratio = "16:9";
+  if (hasOwn(request, "ratio")) {
+    ratio = stringValue(request.ratio, "ratio");
+    if (ROLLDEK_ASPECT_RATIOS.indexOf(ratio) < 0) {
+      throw new Error("ratio must be one of " + ROLLDEK_ASPECT_RATIOS.join(", "));
+    }
+  }
+  const normalized = {
+    model: model,
+    content: normalizeRollDekContent(request.content),
+    resolution: resolution,
+    ratio: ratio,
+  };
+  if (duration !== undefined) normalized.duration = duration;
+  for (const field of ["generate_audio", "watermark"]) {
+    if (!hasOwn(request, field)) continue;
+    if (typeof request[field] !== "boolean") throw new Error(field + " must be a boolean");
+    normalized[field] = request[field];
+  }
+  if (hasOwn(request, "seed")) {
+    if (typeof request.seed !== "number") throw new Error("seed must be an integer");
+    normalized.seed = integerValue(request.seed, "seed", -Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
+  }
+  return normalized;
+}
+
 function normalizeRollDekRequest(request, model, uploadedFile) {
   for (const field of Object.keys(request)) {
     if (!hasOwn(ROLLDEK_SUPPORTED_FIELDS, field)) throw new Error(field + " is not supported by " + model);
@@ -671,6 +787,10 @@ function normalizeRollDekRequest(request, model, uploadedFile) {
 
 function normalizeVideoRequest(request, model, uploadedFile) {
   const input = assertObject(request, "request body must be an object");
+  if (hasOwn(input, "content")) {
+    if (!isRollDek(model)) throw new Error("content request format is only supported for RollDek Seedance models");
+    return normalizeRollDekNativeRequest(input, model, uploadedFile);
+  }
   assertSupportedFields(input);
   if (isGrok(model)) return normalizeGrokRequest(input, model, uploadedFile);
   if (isRollDek(model)) return normalizeRollDekRequest(input, model, uploadedFile);

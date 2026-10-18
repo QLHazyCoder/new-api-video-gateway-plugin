@@ -478,6 +478,98 @@
       "hook": "extractUsageOnComplete",
       "args": [{"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"},{},{"status":"completed","usage":{"total_tokens":2147483648}}],
       "expected": {}
+    },
+    {
+      "name": "accepts Volcano-shaped content JSON for RollDek Seedance",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{
+        "body": {"kind":"json","value":{
+          "model":"doubao-seedance-2-5-260628",
+          "content":[
+            {"type":"text","text":"Continue the scene"},
+            {"type":"image_url","image_url":{"url":"https://media.example/still.png"},"role":"reference_image"},
+            {"type":"video_url","video_url":{"url":"https://media.example/reference.mp4"},"role":"reference_video"},
+            {"type":"audio_url","audio_url":{"url":"asset://ast-audio_123"},"role":"reference_audio"}
+          ],
+          "duration":6,"resolution":"720p","ratio":"9:16","generate_audio":true,"watermark":false,"seed":42
+        }},
+        "model":"doubao-seedance-2-5-260628","upstreamModel":"doubao-seedance-2-5-260628"
+      }],
+      "expected": {"kind":"submit","model":"doubao-seedance-2-5-260628","action":"reference_to_video","requestBody":{
+        "model":"doubao-seedance-2-5-260628",
+        "content":[
+          {"type":"text","text":"Continue the scene"},
+          {"type":"image_url","image_url":{"url":"https://media.example/still.png"},"role":"reference_image"},
+          {"type":"video_url","video_url":{"url":"https://media.example/reference.mp4"},"role":"reference_video"},
+          {"type":"audio_url","audio_url":{"url":"asset://ast-audio_123"},"role":"reference_audio"}
+        ],
+        "resolution":"720p","ratio":"9:16","duration":6,"generate_audio":true,"watermark":false,"seed":42
+      }}
+    },
+    {
+      "name": "forwards Volcano-shaped content JSON to the gateway",
+      "hook": "buildSubmitRequest",
+      "args": [{
+        "requestBody": {
+          "model":"doubao-seedance-2-0-fast-260128",
+          "content":[
+            {"type":"text","text":"Continue the clip"},
+            {"type":"video_url","video_url":{"url":"https://media.example/reference.mp4"},"role":"reference_video"}
+          ],
+          "duration":6,"resolution":"720p","ratio":"16:9"
+        },
+        "model":"doubao-seedance-2-0-fast-260128","upstreamModel":"doubao-seedance-2-0-fast-260128",
+        "baseUrl":"https://coderapi.vip","apiKey":"test-key"
+      }],
+      "expected": {
+        "url":"https://coderapi.vip/v1/videos","method":"POST",
+        "headers":{"Content-Type":"application/json","Authorization":"Bearer test-key"},
+        "body":{
+          "model":"doubao-seedance-2-0-fast-260128",
+          "content":[
+            {"type":"text","text":"Continue the clip"},
+            {"type":"video_url","video_url":{"url":"https://media.example/reference.mp4"},"role":"reference_video"}
+          ],
+          "resolution":"720p","ratio":"16:9","duration":6
+        },
+        "action":"reference_to_video"
+      }
+    },
+    {
+      "name": "uses native RollDek reference video for token pricing facts",
+      "hook": "extractUsage",
+      "args": [{"requestBody":{
+        "model":"doubao-seedance-2-0-260128",
+        "content":[
+          {"type":"text","text":"Continue the clip"},
+          {"type":"video_url","video_url":{"url":"https://media.example/reference.mp4"},"role":"reference_video"}
+        ],
+        "duration":6,"resolution":"720p","ratio":"16:9"
+      },"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"}],
+      "expected":{"tokens":129600,"video_input":"video"}
+    },
+    {
+      "name": "rejects Volcano-only adaptive ratio on the RollDek route",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{
+        "model":"doubao-seedance-2-5-260628",
+        "content":[{"type":"text","text":"Animate the scene"}],
+        "duration":6,"resolution":"720p","ratio":"adaptive"
+      }},"model":"doubao-seedance-2-5-260628","upstreamModel":"doubao-seedance-2-5-260628"}],
+      "expectedError":"ratio must be one of 16:9, 9:16, 1:1, 21:9, 4:3, 3:4"
+    },
+    {
+      "name": "keeps Volcano content format scoped to RollDek models",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{
+        "model":"seedance-2.0",
+        "content":[{"type":"text","text":"Animate the scene"}],
+        "duration":6,"resolution":"720p"
+      }},"model":"seedance-2.0","upstreamModel":"seedance-2.0"}],
+      "expectedError":"content request format is only supported for RollDek Seedance models"
     }
   ]
 }
