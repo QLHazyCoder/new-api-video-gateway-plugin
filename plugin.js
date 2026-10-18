@@ -1,18 +1,18 @@
-const GROK_CLASSIC = "grok-imagine-video";
-const GROK_15 = "grok-imagine-video-1.5";
-const GROK_MODELS = [GROK_CLASSIC, GROK_15];
+const MULTIPART_CLASSIC = "grok-imagine-video";
+const MULTIPART_15 = "grok-imagine-video-1.5";
+const MULTIPART_MODELS = [MULTIPART_CLASSIC, MULTIPART_15];
 const H3_MODEL = "H3";
 const H3_ASPECT_RATIOS = ["9:16", "16:9", "4:3", "3:4", "1:1"];
-const ROLLDEK_CONFIG = {
+const EXTENDED_CONFIG = {
   "doubao-seedance-2-0-260128": { maxDuration: 15 },
   "doubao-seedance-2-0-fast-260128": { maxDuration: 15 },
   "doubao-seedance-2-0-mini-260615": { maxDuration: 15 },
   "doubao-seedance-2-5-260628": { maxDuration: 30 },
 };
-const ROLLDEK_MODELS = Object.keys(ROLLDEK_CONFIG);
-const ROLLDEK_ASPECT_RATIOS = ["16:9", "9:16", "1:1", "21:9", "4:3", "3:4"];
+const EXTENDED_MODELS = Object.keys(EXTENDED_CONFIG);
+const EXTENDED_ASPECT_RATIOS = ["16:9", "9:16", "1:1", "21:9", "4:3", "3:4"];
 
-const ZHIQI_MODELS = [
+const URL_INPUT_MODELS = [
   "seedance-2.0",
   "seedance-2.5",
   "seedance-2.0-fast-offical",
@@ -21,13 +21,13 @@ const ZHIQI_MODELS = [
   H3_MODEL,
 ];
 
-const VIDEO_MODELS = GROK_MODELS.concat(ZHIQI_MODELS, ROLLDEK_MODELS);
-const GROK_CLASSIC_RESOLUTIONS = ["480p", "720p"];
-const GROK_15_RESOLUTIONS = ["480p", "720p", "1080p"];
-const GROK_RESOLUTIONS = GROK_15_RESOLUTIONS;
-const ZHIQI_RESOLUTIONS = ["480p", "720p", "1080p"];
-const ZHIQI_1080_MODELS = ["seedance-2.5", "seedance-2.0-offical"];
-const ZHIQI_720_ONLY_MODELS = ["seedance-2.0", "seedance-2.0-fast-offical", "seedance-2.0-mini-offical"];
+const VIDEO_MODELS = MULTIPART_MODELS.concat(URL_INPUT_MODELS, EXTENDED_MODELS);
+const MULTIPART_CLASSIC_RESOLUTIONS = ["480p", "720p"];
+const MULTIPART_15_RESOLUTIONS = ["480p", "720p", "1080p"];
+const MULTIPART_RESOLUTIONS = MULTIPART_15_RESOLUTIONS;
+const URL_INPUT_RESOLUTIONS = ["480p", "720p", "1080p"];
+const URL_INPUT_1080_MODELS = ["seedance-2.5", "seedance-2.0-offical"];
+const URL_INPUT_720_ONLY_MODELS = ["seedance-2.0", "seedance-2.0-fast-offical", "seedance-2.0-mini-offical"];
 const ASPECT_RATIOS = ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"];
 const SIZE_TO_ASPECT_RATIO = {
   "1024x1024": "1:1",
@@ -72,7 +72,7 @@ const SUPPORTED_FIELDS = {
   auto_face_mask: true,
 };
 
-const ROLLDEK_SUPPORTED_FIELDS = {
+const EXTENDED_SUPPORTED_FIELDS = {
   model: true,
   prompt: true,
   duration: true,
@@ -96,7 +96,7 @@ const ROLLDEK_SUPPORTED_FIELDS = {
   watermark: true,
   seed: true,
 };
-const ROLLDEK_NATIVE_FIELDS = {
+const EXTENDED_NATIVE_FIELDS = {
   model: true,
   content: true,
   duration: true,
@@ -136,7 +136,7 @@ const HAS_VIDEO_FIELD = {
   description: { en: "Whether a reference video is supplied", zh: "是否包含参考视频" },
 };
 
-const ROLLDEK_USAGE_SCHEMA = {
+const EXTENDED_USAGE_SCHEMA = {
   tokens: {
     type: "number",
     unit: "token",
@@ -179,8 +179,8 @@ export const meta = {
   name: "Coder Video Gateway",
   icon: "text:CV",
   description: {
-    en: "Standard OpenAI video gateway for Grok Imagine, Seedance, RollDek, and MiniMax H3 models",
-    zh: "通过标准 OpenAI 视频接口提供 Grok Imagine、Seedance、RollDek 和 MiniMax H3 模型",
+    en: "Video generation through a standard OpenAI-compatible interface",
+    zh: "通过标准 OpenAI 兼容接口提供视频生成服务",
   },
   version: "1.0.3",
   author: { name: "QLHazyCoder" },
@@ -191,23 +191,23 @@ export const meta = {
   protocols: ["openai_video"],
   usageProfiles: [
     {
-      models: [GROK_CLASSIC],
-      schema: usageSchema(GROK_CLASSIC_RESOLUTIONS, false),
+      models: [MULTIPART_CLASSIC],
+      schema: usageSchema(MULTIPART_CLASSIC_RESOLUTIONS, false),
       examples: [
         { label: "480p 5s", facts: { duration: 5, resolution: "480p", image_count: 0 } },
         { label: "720p 10s · image", facts: { duration: 10, resolution: "720p", image_count: 1 } },
       ],
     },
     {
-      models: [GROK_15],
-      schema: usageSchema(GROK_15_RESOLUTIONS, false),
+      models: [MULTIPART_15],
+      schema: usageSchema(MULTIPART_15_RESOLUTIONS, false),
       examples: [
         { label: "480p 5s", facts: { duration: 5, resolution: "480p", image_count: 0 } },
         { label: "1080p 10s · image", facts: { duration: 10, resolution: "1080p", image_count: 1 } },
       ],
     },
     {
-      models: ZHIQI_720_ONLY_MODELS,
+      models: URL_INPUT_720_ONLY_MODELS,
       schema: usageSchema(["480p", "720p"], true),
       examples: [
         { label: "720p 4s", facts: { duration: 4, resolution: "720p", image_count: 0, has_video: "false" } },
@@ -215,8 +215,8 @@ export const meta = {
       ],
     },
     {
-      models: ZHIQI_1080_MODELS,
-      schema: usageSchema(ZHIQI_RESOLUTIONS, true),
+      models: URL_INPUT_1080_MODELS,
+      schema: usageSchema(URL_INPUT_RESOLUTIONS, true),
       examples: [
         { label: "720p 4s", facts: { duration: 4, resolution: "720p", image_count: 0, has_video: "false" } },
         { label: "1080p 8s · reference video", facts: { duration: 8, resolution: "1080p", image_count: 0, has_video: "true" } },
@@ -231,8 +231,8 @@ export const meta = {
       ],
     },
     {
-      models: ROLLDEK_MODELS,
-      schema: ROLLDEK_USAGE_SCHEMA,
+      models: EXTENDED_MODELS,
+      schema: EXTENDED_USAGE_SCHEMA,
       examples: [
         { label: "720p · 6s · no reference video", facts: { tokens: 129600, video_input: "none" } },
         { label: "720p · 6s · reference video", facts: { tokens: 129600, video_input: "video" } },
@@ -268,16 +268,16 @@ function assertSupportedFields(request) {
   }
 }
 
-function isGrok(model) {
-  return GROK_MODELS.indexOf(model) >= 0;
+function supportsMultipartInput(model) {
+  return MULTIPART_MODELS.indexOf(model) >= 0;
 }
 
-function isZhiqi(model) {
-  return ZHIQI_MODELS.indexOf(model) >= 0;
+function isUrlInputModel(model) {
+  return URL_INPUT_MODELS.indexOf(model) >= 0;
 }
 
-function isRollDek(model) {
-  return Object.prototype.hasOwnProperty.call(ROLLDEK_CONFIG, model);
+function isExtended(model) {
+  return Object.prototype.hasOwnProperty.call(EXTENDED_CONFIG, model);
 }
 
 function clientModelFor(ctx, request) {
@@ -314,8 +314,8 @@ function integerValue(value, field, min, max) {
 
 function durationFor(request, model) {
   const values = [];
-  const minimum = model === H3_MODEL || isRollDek(model) ? 4 : 1;
-  const maximum = isGrok(model) || model === H3_MODEL ? 15 : isRollDek(model) ? ROLLDEK_CONFIG[model].maxDuration : 3600;
+  const minimum = model === H3_MODEL || isExtended(model) ? 4 : 1;
+  const maximum = supportsMultipartInput(model) || model === H3_MODEL ? 15 : isExtended(model) ? EXTENDED_CONFIG[model].maxDuration : 3600;
   if (hasValue(request.seconds)) values.push(integerValue(request.seconds, "seconds", minimum, maximum));
   if (hasValue(request.duration)) values.push(integerValue(request.duration, "duration", minimum, maximum));
   if (values.length > 1 && values[0] !== values[1]) throw new Error("seconds and duration must match when both are provided");
@@ -326,19 +326,19 @@ function durationFor(request, model) {
 function normalizeResolution(value, model) {
   const raw = trimmed(value).toLowerCase();
   const resolution = raw === "480" ? "480p" : raw === "720" ? "720p" : raw === "1080" ? "1080p" : raw;
-  const allowed = isRollDek(model) ? ["720p"] : model === H3_MODEL ? ["720p"] : isGrok(model)
-    ? model === GROK_CLASSIC
+  const allowed = isExtended(model) ? ["720p"] : model === H3_MODEL ? ["720p"] : supportsMultipartInput(model)
+    ? model === MULTIPART_CLASSIC
       ? ["480p", "720p"]
-      : GROK_RESOLUTIONS
-    : ZHIQI_720_ONLY_MODELS.indexOf(model) >= 0
+      : MULTIPART_RESOLUTIONS
+    : URL_INPUT_720_ONLY_MODELS.indexOf(model) >= 0
       ? ["480p", "720p"]
-      : ZHIQI_RESOLUTIONS;
+      : URL_INPUT_RESOLUTIONS;
   if (allowed.indexOf(resolution) < 0) throw new Error("resolution is not supported by " + model + "; use " + allowed.join(", "));
   return resolution;
 }
 
 function resolutionFor(request, model) {
-  return hasValue(request.resolution) ? normalizeResolution(request.resolution, model) : isGrok(model) ? "480p" : "720p";
+  return hasValue(request.resolution) ? normalizeResolution(request.resolution, model) : supportsMultipartInput(model) ? "480p" : "720p";
 }
 
 function stringValue(value, field) {
@@ -407,7 +407,7 @@ function imageValue(value, field, model, allowFilePlaceholder, expectedFileRef) 
   if (typeof value === "string") {
     const raw = trimmed(value);
     if (!raw) throw new Error(field + " must not be empty");
-    if (isZhiqi(model)) return { kind: "public", value: publicURL(raw, field) };
+    if (isUrlInputModel(model)) return { kind: "public", value: publicURL(raw, field) };
     return { kind: "image", value: { url: raw } };
   }
   const object = assertObject(value, field + " must be a URL, data URL, or image object");
@@ -417,15 +417,15 @@ function imageValue(value, field, model, allowFilePlaceholder, expectedFileRef) 
   }
   if (hasOwn(object, "file_id")) {
     const fileID = stringValue(object.file_id, field + ".file_id");
-    if (isZhiqi(model)) throw new Error(field + ".file_id is not supported; use a public image URL");
+    if (isUrlInputModel(model)) throw new Error(field + ".file_id is not supported; use a public image URL");
     return { kind: "image", value: { file_id: fileID } };
   }
   if (isObject(object.url)) {
-    if (!allowFilePlaceholder || isZhiqi(model)) throw new Error(field + ".url must be a public HTTP(S) URL for this model");
+    if (!allowFilePlaceholder || isUrlInputModel(model)) throw new Error(field + ".url must be a public HTTP(S) URL for this model");
     return { kind: "image", value: { url: copyFilePlaceholder(object.url, expectedFileRef) } };
   }
   const url = stringValue(object.url, field + ".url");
-  if (isZhiqi(model)) return { kind: "public", value: publicURL(url, field + ".url") };
+  if (isUrlInputModel(model)) return { kind: "public", value: publicURL(url, field + ".url") };
   return { kind: "image", value: { url: url } };
 }
 
@@ -435,8 +435,8 @@ function imageFromRequest(request, model, uploadedFile) {
     if (hasOwn(request, field) && hasValue(request[field])) candidates.push(imageValue(request[field], field, model, !!uploadedFile, uploadedFile && uploadedFile.ref));
   }
   if (uploadedFile) {
-    if (isZhiqi(model)) {
-      throw new Error("ZeeQi image-to-video requires a public HTTP(S) image URL; upload the image to an image host first");
+    if (isUrlInputModel(model)) {
+      throw new Error("this model requires a public HTTP(S) image URL; upload the image to an image host first");
     }
     const existing = candidates[0];
     const existingRef = existing && isObject(existing.value) && isObject(existing.value.url) ? trimmed(existing.value.url.__fileRef) : "";
@@ -490,7 +490,7 @@ function audioCount(request) {
   return Array.isArray(request.reference_audio_urls) ? request.reference_audio_urls.length : 0;
 }
 
-function estimateRollDekTokens(duration) {
+function estimateExtendedTokens(duration) {
   return Math.ceil((duration * 1280 * 720 * 24) / 1024);
 }
 
@@ -507,7 +507,7 @@ function actionFor(request) {
   return "text_to_video";
 }
 
-function normalizeGrokRequest(request, model, uploadedFile) {
+function normalizeMultipartVideoRequest(request, model, uploadedFile) {
   for (const field of [
     "reference_image_urls",
     "images",
@@ -543,7 +543,7 @@ function normalizeGrokRequest(request, model, uploadedFile) {
   return normalized;
 }
 
-function normalizeZhiqiRequest(request, model, uploadedFile) {
+function normalizeUrlInputRequest(request, model, uploadedFile) {
   if (model === H3_MODEL) {
     for (const field of ["reference_video_urls", "first_frame_image_url", "last_frame_image_url", "size"]) {
       if (hasOwn(request, field) && hasValue(request[field])) throw new Error(field + " is not supported by H3");
@@ -596,26 +596,26 @@ function normalizeZhiqiRequest(request, model, uploadedFile) {
   return normalized;
 }
 
-function rollDekAssetURL(value, field) {
+function validatedMediaURL(value, field) {
   const url = stringValue(value, field);
-  if (/^https:\/\/[^\s]+$/i.test(url) || /^asset:\/\/ast-[A-Za-z0-9_-]+$/i.test(url)) return url;
-  throw new Error(field + " must be a public HTTPS URL or an authorized asset://ast-... ID");
+  if (/^https:\/\/[^\s]+$/i.test(url)) return url;
+  throw new Error(field + " must be a public HTTPS URL");
 }
 
-function rollDekImageValue(value, field) {
-  if (typeof value === "string") return rollDekAssetURL(value, field);
-  const object = assertObject(value, field + " must be a public HTTPS URL or an authorized asset ID");
+function validatedImageValue(value, field) {
+  if (typeof value === "string") return validatedMediaURL(value, field);
+  const object = assertObject(value, field + " must be a public HTTPS URL");
   const keys = Object.keys(object);
   if (keys.length !== 1 || !hasOwn(object, "url") || typeof object.url !== "string") {
-    throw new Error(field + " must be a public HTTPS URL or an authorized asset ID");
+    throw new Error(field + " must be a public HTTPS URL");
   }
-  return rollDekAssetURL(object.url, field + ".url");
+  return validatedMediaURL(object.url, field + ".url");
 }
 
-function rollDekAssetURLArray(value, field) {
-  if (!Array.isArray(value)) throw new Error(field + " must be an array of public HTTPS URLs or authorized asset IDs");
+function validatedMediaURLArray(value, field) {
+  if (!Array.isArray(value)) throw new Error(field + " must be an array of public HTTPS URLs");
   return value.map(function (item, index) {
-    return rollDekAssetURL(item, field + "[" + index + "]");
+    return validatedMediaURL(item, field + "[" + index + "]");
   });
 }
 
@@ -625,7 +625,7 @@ function assertExactKeys(value, allowed, field) {
   }
 }
 
-function normalizeRollDekContent(value) {
+function normalizeExtendedContent(value) {
   if (!Array.isArray(value) || value.length === 0) throw new Error("content must be a non-empty array");
   const content = value.map(function (item, index) {
     const field = "content[" + index + "]";
@@ -651,7 +651,7 @@ function normalizeRollDekContent(value) {
     const address = assertObject(item[media.field], field + "." + media.field + " must be an object");
     assertExactKeys(address, { url: true }, field + "." + media.field);
     const normalized = { type: type, role: item.role };
-    normalized[media.field] = { url: rollDekAssetURL(address.url, field + "." + media.field + ".url") };
+    normalized[media.field] = { url: validatedMediaURL(address.url, field + "." + media.field + ".url") };
     return normalized;
   });
 
@@ -674,14 +674,14 @@ function normalizeRollDekContent(value) {
   return content;
 }
 
-function normalizeRollDekNativeRequest(request, model, uploadedFile) {
+function normalizeExtendedNativeRequest(request, model, uploadedFile) {
   for (const field of Object.keys(request)) {
-    if (!hasOwn(ROLLDEK_NATIVE_FIELDS, field)) throw new Error("unsupported field: " + field);
+    if (!hasOwn(EXTENDED_NATIVE_FIELDS, field)) throw new Error("unsupported field: " + field);
   }
-  if (uploadedFile) throw new Error("RollDek Seedance requires public reference URLs; local uploads are not supported");
+  if (uploadedFile) throw new Error("this model requires public HTTPS reference URLs; local uploads are not supported");
   if (!hasValue(request.model)) throw new Error("model is required");
 
-  const config = ROLLDEK_CONFIG[model];
+  const config = EXTENDED_CONFIG[model];
   let duration;
   if (hasOwn(request, "duration")) {
     if (typeof request.duration !== "number") throw new Error("duration must be an integer");
@@ -693,13 +693,13 @@ function normalizeRollDekNativeRequest(request, model, uploadedFile) {
   let ratio = "16:9";
   if (hasOwn(request, "ratio")) {
     ratio = stringValue(request.ratio, "ratio");
-    if (ROLLDEK_ASPECT_RATIOS.indexOf(ratio) < 0) {
-      throw new Error("ratio must be one of " + ROLLDEK_ASPECT_RATIOS.join(", "));
+    if (EXTENDED_ASPECT_RATIOS.indexOf(ratio) < 0) {
+      throw new Error("ratio must be one of " + EXTENDED_ASPECT_RATIOS.join(", "));
     }
   }
   const normalized = {
     model: model,
-    content: normalizeRollDekContent(request.content),
+    content: normalizeExtendedContent(request.content),
     resolution: resolution,
     ratio: ratio,
   };
@@ -716,13 +716,13 @@ function normalizeRollDekNativeRequest(request, model, uploadedFile) {
   return normalized;
 }
 
-function normalizeRollDekRequest(request, model, uploadedFile) {
+function normalizeExtendedRequest(request, model, uploadedFile) {
   for (const field of Object.keys(request)) {
-    if (!hasOwn(ROLLDEK_SUPPORTED_FIELDS, field)) throw new Error(field + " is not supported by " + model);
+    if (!hasOwn(EXTENDED_SUPPORTED_FIELDS, field)) throw new Error(field + " is not supported by " + model);
   }
-  if (uploadedFile) throw new Error("RollDek Seedance requires a public HTTPS image URL or authorized asset ID; local uploads are not supported");
+  if (uploadedFile) throw new Error("this model requires a public HTTPS image URL; local uploads are not supported");
 
-  const config = ROLLDEK_CONFIG[model];
+  const config = EXTENDED_CONFIG[model];
   const duration = aliasValue(request, ["duration", "seconds"], "duration", function (value, field) {
     return integerValue(value, field, 4, config.maxDuration);
   });
@@ -743,8 +743,8 @@ function normalizeRollDekRequest(request, model, uploadedFile) {
 
   const ratio = aliasValue(request, ["aspect_ratio", "aspectRatio", "ratio"], "aspect ratio", function (value, field) {
     const normalized = stringValue(value, field);
-    if (ROLLDEK_ASPECT_RATIOS.indexOf(normalized) < 0) {
-      throw new Error(field + " must be one of " + ROLLDEK_ASPECT_RATIOS.join(", "));
+    if (EXTENDED_ASPECT_RATIOS.indexOf(normalized) < 0) {
+      throw new Error(field + " must be one of " + EXTENDED_ASPECT_RATIOS.join(", "));
     }
     return normalized;
   });
@@ -760,15 +760,15 @@ function normalizeRollDekRequest(request, model, uploadedFile) {
   };
   if (duration !== undefined) normalized.duration = duration;
 
-  const referenceImage = aliasValue(request, ["input_reference", "image", "image_url"], "input reference", rollDekImageValue);
+  const referenceImage = aliasValue(request, ["input_reference", "image", "image_url"], "input reference", validatedImageValue);
   if (referenceImage !== undefined) normalized.input_reference = referenceImage;
-  const referenceImages = aliasValue(request, ["reference_image_urls", "images", "image_urls"], "reference images", rollDekAssetURLArray);
+  const referenceImages = aliasValue(request, ["reference_image_urls", "images", "image_urls"], "reference images", validatedMediaURLArray);
   if (referenceImages !== undefined && referenceImages.length > 0) normalized.reference_image_urls = referenceImages;
   for (const field of ["first_frame_image_url", "last_frame_image_url"]) {
-    if (hasValue(request[field])) normalized[field] = rollDekAssetURL(request[field], field);
+    if (hasValue(request[field])) normalized[field] = validatedMediaURL(request[field], field);
   }
   for (const field of ["reference_video_urls", "reference_audio_urls"]) {
-    if (hasValue(request[field])) normalized[field] = rollDekAssetURLArray(request[field], field);
+    if (hasValue(request[field])) normalized[field] = validatedMediaURLArray(request[field], field);
   }
 
   const hasFrame = !!(normalized.first_frame_image_url || normalized.last_frame_image_url);
@@ -788,13 +788,13 @@ function normalizeRollDekRequest(request, model, uploadedFile) {
 function normalizeVideoRequest(request, model, uploadedFile) {
   const input = assertObject(request, "request body must be an object");
   if (hasOwn(input, "content")) {
-    if (!isRollDek(model)) throw new Error("content request format is only supported for RollDek Seedance models");
-    return normalizeRollDekNativeRequest(input, model, uploadedFile);
+    if (!isExtended(model)) throw new Error("structured content format is only supported for configured models");
+    return normalizeExtendedNativeRequest(input, model, uploadedFile);
   }
   assertSupportedFields(input);
-  if (isGrok(model)) return normalizeGrokRequest(input, model, uploadedFile);
-  if (isRollDek(model)) return normalizeRollDekRequest(input, model, uploadedFile);
-  return normalizeZhiqiRequest(input, model, uploadedFile);
+  if (supportsMultipartInput(model)) return normalizeMultipartVideoRequest(input, model, uploadedFile);
+  if (isExtended(model)) return normalizeExtendedRequest(input, model, uploadedFile);
+  return normalizeUrlInputRequest(input, model, uploadedFile);
 }
 
 function uploadedFileForContext(ctx, request) {
@@ -908,10 +908,10 @@ export function parseSubmitResponse(_ctx, response) {
 export function extractUsage(ctx) {
   const resolved = normalizedRequestForContext(ctx);
   const normalized = resolved.request;
-  if (isRollDek(resolved.upstreamModel)) {
-    const duration = normalized.duration || ROLLDEK_CONFIG[resolved.upstreamModel].maxDuration;
+  if (isExtended(resolved.upstreamModel)) {
+    const duration = normalized.duration || EXTENDED_CONFIG[resolved.upstreamModel].maxDuration;
     return {
-      tokens: estimateRollDekTokens(duration),
+      tokens: estimateExtendedTokens(duration),
       video_input: hasReferenceVideo(normalized) ? "video" : "none",
     };
   }
@@ -921,7 +921,7 @@ export function extractUsage(ctx) {
     image_count: imageCount(normalized),
   };
   if (resolved.upstreamModel === H3_MODEL) facts.audio_count = audioCount(normalized);
-  else if (isZhiqi(resolved.upstreamModel)) facts.has_video = hasReferenceVideo(normalized) ? "true" : "false";
+  else if (isUrlInputModel(resolved.upstreamModel)) facts.has_video = hasReferenceVideo(normalized) ? "true" : "false";
   return facts;
 }
 
@@ -934,16 +934,16 @@ export function extractUsageOnComplete(ctx, _result, body) {
     trimmed(data && data.upstreamModel),
     trimmed(data && data.model),
   ];
-  const model = modelCandidates.find(function (candidate) { return VIDEO_MODELS.indexOf(candidate) >= 0; }) || GROK_15;
+  const model = modelCandidates.find(function (candidate) { return VIDEO_MODELS.indexOf(candidate) >= 0; }) || MULTIPART_15;
   const facts = {};
   const status = trimmed(data && data.status).toLowerCase();
-  if (isRollDek(model) && ["succeeded", "success", "completed", "complete", "done"].indexOf(status) >= 0) {
+  if (isExtended(model) && ["succeeded", "success", "completed", "complete", "done"].indexOf(status) >= 0) {
     const tokens = data && isObject(data.usage) ? data.usage.total_tokens : undefined;
     if (typeof tokens === "number" && Number.isSafeInteger(tokens) && tokens >= 0 && tokens <= 2147483647) {
       facts.tokens = tokens;
     }
   }
-  if (isRollDek(model)) return facts;
+  if (isExtended(model)) return facts;
   const durationCandidates = [
     data.duration,
     data.seconds,
@@ -952,10 +952,10 @@ export function extractUsageOnComplete(ctx, _result, body) {
   for (const raw of durationCandidates) {
     if (!hasValue(raw)) continue;
     try {
-      facts.duration = integerValue(raw, "upstream video duration", model === H3_MODEL ? 4 : 1, isGrok(model) || model === H3_MODEL ? 15 : 3600);
+      facts.duration = integerValue(raw, "upstream video duration", model === H3_MODEL ? 4 : 1, supportsMultipartInput(model) || model === H3_MODEL ? 15 : 3600);
       break;
     } catch (_error) {
-      // An invalid vendor fact must not replace the reserved request fact.
+      // An invalid task fact must not replace the reserved request fact.
     }
   }
   if (hasValue(data.resolution)) {

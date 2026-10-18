@@ -1,16 +1,16 @@
 # Coder Video Gateway Task Plugin
 
-这是一个给 New API 使用的独立 Task Plugin。它把下游客户的标准 OpenAI 视频接口统一转发到一个 New API 视频网关，公开端点始终是：
+这是一个给 New API 使用的独立 Task Plugin。它把下游客户的标准视频请求转发到视频服务，公开端点始终由 New API 提供：
 
 - `POST /v1/videos`
 - `GET /v1/videos/:task_id`
 - `GET|HEAD /v1/videos/:task_id/content`
 
-插件不会注册 Grok 的 `/v1/videos/generations`，也不会把 ZeeQi 的私有协议暴露给下游。
+插件不注册额外公开端点。下游只使用上面列出的标准视频接口。
 
 ## 支持模型
 
-当前显式支持以下 12 个模型，不包含 Sora：
+当前显式支持以下 12 个模型：
 
 - `grok-imagine-video`
 - `grok-imagine-video-1.5`
@@ -25,9 +25,24 @@
 - `doubao-seedance-2-0-mini-260615`
 - `doubao-seedance-2-5-260628`
 
-模型列表是插件的显式白名单，其他模型会在请求解码阶段被拒绝。
+以下模型构成插件白名单，未列出的模型会在请求解码阶段被拒绝。
 
-能力约束如下：`grok-imagine-video` 只支持 480p/720p；`grok-imagine-video-1.5` 支持 480p/720p/1080p；`seedance-2.0`、`seedance-2.0-fast-offical`、`seedance-2.0-mini-offical` 支持 480p/720p；`seedance-2.5` 和 `seedance-2.0-offical` 支持 480p/720p/1080p；`H3` 只支持 720p、4–15 秒、最多 9 张图片和 3 条音频参考。四个 RollDek Seedance 模型只支持 720p；时长分别为 4–15 秒（2.0、2.0-fast、2.0-mini）和 4–30 秒（2.5）。RollDek 未提供时长时按源站模型最长时长预估，实际计费 token 以源站完成任务返回的 `usage.total_tokens` 为准。Grok 时长为 1–15 秒，其他 Seedance 时长为 1–3600 秒。
+| 模型 ID | 分辨率 | 时长与输入限制 |
+| --- | --- | --- |
+| `grok-imagine-video` | 480p、720p | 1–15 秒 |
+| `grok-imagine-video-1.5` | 480p、720p、1080p | 1–15 秒 |
+| `seedance-2.0` | 480p、720p | 1–3600 秒 |
+| `seedance-2.5` | 480p、720p、1080p | 1–3600 秒 |
+| `seedance-2.0-fast-offical` | 480p、720p | 1–3600 秒 |
+| `seedance-2.0-mini-offical` | 480p、720p | 1–3600 秒 |
+| `seedance-2.0-offical` | 480p、720p、1080p | 1–3600 秒 |
+| `H3` | 720p | 4–15 秒；最多 9 张图片、3 条音频 |
+| `doubao-seedance-2-0-260128` | 720p | 4–15 秒 |
+| `doubao-seedance-2-0-fast-260128` | 720p | 4–15 秒 |
+| `doubao-seedance-2-0-mini-260615` | 720p | 4–15 秒 |
+| `doubao-seedance-2-5-260628` | 720p | 4–30 秒 |
+
+New API 渠道支持将模型 ID 映射为客户侧别名；映射规则由服务配置决定。
 
 ## New API 配置
 
@@ -40,26 +55,26 @@
 
 渠道类型是 **Task Plugin (61)**。插件的默认 Base URL 是 `https://coderapi.vip`，也可以在渠道中填写实际网关地址；渠道密钥只填写网关 API key。安装目标需要支持 Task Plugin v1、`usageProfiles`、文件占位符和视频 artifact。
 
-下游客户仍然使用你自己的 New API 地址和自己的访问密钥，调用 `POST /v1/videos`。插件会使用渠道密钥访问 Base URL，不会向客户端暴露上游厂商路径。
+下游客户使用你提供的 New API 地址和访问密钥调用 `POST /v1/videos`。提交、查询和下载均通过前述公开端点完成。
 
 ## 图生视频限制
 
-Grok 模型接受标准 JSON 图片 URL，也接受标准 multipart 上传；上传文件会在网关请求中转换为受控的 data URL 占位符。
+前两个模型 ID 接受 JSON 图片 URL，也接受 multipart 图片上传；上传文件会转换为 New API 管理的文件占位符。
 
-ZeeQi Seedance 模型的上游要求公网图片 URL，因此插件会拒绝本地 multipart 图片和非 HTTP(S) 图片地址。RollDek Seedance 接受 HTTPS 图片 URL 或授权的 `asset://ast-...` 资源 ID，也拒绝本地 multipart 图片。请先把图片放到图床，再把地址放到 `input_reference`、`image` 或 `image_url`。
+`seedance-2.0`、`seedance-2.5`、三个 `seedance-2.0-...` 模型及 `H3` 使用可公开访问的 HTTP(S) 图片 URL，不接受本地 multipart 图片。四个 `doubao-seedance-...` 模型接受 HTTPS 图片 URL，也不接受本地 multipart 图片。需要让服务读取的素材应使用可访问的 HTTPS 地址，并放入 `input_reference`、`image` 或 `image_url`。
 
-RollDek Seedance 还接受火山方舟风格的 JSON `content` 数组，请求仍发送到标准 `POST /v1/videos`。此格式仅用于四个 RollDek 模型，支持 `text`、`image_url`、`video_url`、`audio_url` 内容项，以及 `duration`、`resolution`、`ratio`、`generate_audio`、`watermark`、`seed`。它只实现 RollDek 文档支持的参数子集：该渠道固定为 `720p`，宽高比限于 `16:9`、`9:16`、`1:1`、`21:9`、`4:3`、`3:4`；`adaptive`、`duration: -1` 和未列出的火山参数不会透传。详细格式见下游接入文档。
+四个 `doubao-seedance-...` 模型还接受结构化 JSON `content` 数组，请求仍发送到标准 `POST /v1/videos`。此格式支持 `text`、`image_url`、`video_url`、`audio_url` 内容项，以及 `duration`、`resolution`、`ratio`、`generate_audio`、`watermark`、`seed`。该格式固定为 `720p`，宽高比限于 `16:9`、`9:16`、`1:1`、`21:9`、`4:3`、`3:4`；不支持 `adaptive`、`duration: -1` 及未列出的字段。详细格式见下游接入文档。
 
 ## 计量与价格
 
 插件只报告计量事实，不内置价格：
 
-- Grok：`duration`、`resolution`、`image_count`
-- Seedance：`duration`、`resolution`、`image_count`、`has_video`
-- H3：`duration`、`resolution`、`image_count`、`audio_count`
-- RollDek Seedance：`tokens`、`video_input`
+- 标准模型：`duration`、`resolution`、`image_count`
+- 支持参考视频的模型：另含 `has_video`
+- `H3`：另含 `audio_count`
+- 四个 `doubao-seedance-...` 模型：`tokens`、`video_input`
 
-RollDek 的提交阶段按源插件一致的规则预估 token 数，成功任务查询阶段读取源站返回的最终 token 数并用于结算；如果源站没有返回用量，继续使用预估值。价格由 New API 模型定价页面配置，插件不会覆盖现有价格，也不会写入任何供应商价格。
+四个扩展模型在提交阶段预估 token 数，成功任务查询阶段优先使用任务结果中的 `usage.total_tokens`；没有有效实际用量时保留预估值。价格由 New API 模型定价页面配置，插件不会写入价格。
 
 ## 本地验证
 
@@ -70,7 +85,7 @@ new-api plugin lint /opt/qlh-main/new-api-video-gateway-plugin/plugin.js
 new-api plugin test /opt/qlh-main/new-api-video-gateway-plugin/plugin.js --fixture /opt/qlh-main/new-api-video-gateway-plugin/golden.json
 ```
 
-测试夹具覆盖 12 个模型、RollDek 720p/时长/token 计量和火山格式 `content` 请求、JSON/multipart 解码、Grok 本地图片、Seedance 公网图片与 H3 多图多音频限制、标准 `/v1/videos` 提交/查询/内容请求、状态映射、渲染和计量事实。
+测试夹具覆盖 12 个模型、分辨率与时长限制、token 计量和结构化 `content` 请求、JSON/multipart 解码、图片/音频输入、标准 `/v1/videos` 提交/查询/内容请求、状态映射、渲染和计量事实。
 
 ## 客户调用示例
 
@@ -80,9 +95,9 @@ new-api plugin test /opt/qlh-main/new-api-video-gateway-plugin/plugin.js --fixtu
 curl https://你的-new-api.example/v1/videos \
   -H 'Authorization: Bearer 你的下游密钥' \
   -H 'Content-Type: application/json' \
-  -d '{"model":"grok-imagine-video-1.5","prompt":"A paper boat on a rainy street","duration":5,"resolution":"720p"}'
+  -d '{"model":"seedance-2.0","prompt":"A paper boat on a rainy street","duration":5,"resolution":"720p"}'
 ```
 
-接口会返回 New API 的公共任务 ID。客户随后使用 `GET /v1/videos/{task_id}` 查询状态，成功后使用 `GET /v1/videos/{task_id}/content` 下载视频。Seedance 图生视频请求中的图片必须是公网 HTTP(S) URL；Grok 才支持 multipart 本地图片。
+接口会返回 New API 的公共任务 ID。客户随后使用 `GET /v1/videos/{task_id}` 查询状态，成功后使用 `GET /v1/videos/{task_id}/content` 下载视频。图片输入限制取决于所选模型；请使用公开文档列出的图片 URL 或 multipart 形式。
 
 详细职责边界、文件说明、开发清单和审查记录见 [`DESIGN_AND_REVIEW.md`](DESIGN_AND_REVIEW.md)。

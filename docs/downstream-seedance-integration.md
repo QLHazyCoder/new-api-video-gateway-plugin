@@ -1,17 +1,16 @@
 # 下游自研平台接入 Seedance 视频 API
 
-本文面向你的下游客户，说明如何从自研平台调用你提供的 Seedance 视频 API。示例使用 `https://coderapi.vip`；客户实际应使用你交付的服务地址和下游 API Key。你已经接入的 RollDek Seedance 模型由你的服务对外提供，客户请求始终发给你的服务，不是直接发给 RollDek。
+本文面向下游客户，说明如何从自研平台调用视频 API。示例使用 `https://coderapi.vip`；客户实际应使用服务地址和下游 API Key。所有请求都发送到本服务。
 
-客户端使用 OpenAI Videos API 兼容形式的 HTTP 接口、Bearer Token 和异步任务流程，不需要安装本仓库的 New API Task Plugin。如果客户的平台本身是 New API，并希望把你的服务配置成它的上游渠道，才需要在客户自己的 New API 实例安装 `coder-video-gateway` Task Plugin。该插件是 New API 专用的适配器，不是自研平台的客户端 SDK。
+客户端使用 OpenAI Videos API 兼容形式的 HTTP 接口、Bearer Token 和异步任务流程，不需要安装本仓库的 New API Task Plugin。如果客户的平台本身是 New API，并希望将本服务配置为渠道，才需要在客户自己的 New API 实例安装 `coder-video-gateway` Task Plugin。该插件是 New API 专用适配器，不是自研平台的客户端 SDK。
 
 ## 协议范围
 
 - API 根地址使用你提供给客户的服务域名，例如 `https://coderapi.vip`；不要在根地址末尾重复添加 `/v1`。
 - 创建、查询、下载路径兼容 OpenAI Videos API 的路径和任务式工作流；这是你的服务提供的兼容接口，不是 OpenAI 官方服务，也不承诺支持 OpenAI API 的全部参数或所有 SDK 行为。
-- 四个 RollDek 模型除本文的简化 JSON 格式外，也支持火山方舟风格的 `content` 请求结构子集；路径仍是本服务的 `/v1/videos`，不需要请求火山或 RollDek 私有地址。
+- 四个扩展模型除本文的简化 JSON 格式外，也支持结构化 `content` 请求子集；请求始终发送到本服务的 `/v1/videos`。
 - 本指南只说明你的服务当前开放的四个 Seedance 模型。服务端必须已开放相应模型并为调用方密钥授权。
-- 客户不需要 RollDek 的 Base URL、渠道密钥或私有协议参数。
-- 当前 OpenAI 官方文档将 Sora Videos API 标记为已停用，并注明于 2026-09-24 关闭。因此这里所说的“OpenAI 兼容”是本服务实现的接口兼容，不代表 OpenAI 官方视频 API 仍可用。详见 [OpenAI 视频创建 API 文档](https://developers.openai.com/api/reference/resources/videos/methods/create)。
+- 客户只需要本服务的地址和服务方签发的 API Key。
 
 ## 认证与路径
 
@@ -27,7 +26,7 @@ Authorization: Bearer <YOUR_API_KEY>
 | 查询任务状态 | `GET` | `/v1/videos/{video_id}` |
 | 下载生成视频 | `GET` | `/v1/videos/{video_id}/content` |
 
-`video_id` 使用创建响应中的 `id`。不要把渠道供应商密钥放进客户请求；客户只使用服务方发放的下游 API Key。
+`video_id` 使用创建响应中的 `id`。不要把服务端渠道密钥放进客户请求；客户只使用服务方发放的下游 API Key。
 
 ## 本服务开放的模型
 
@@ -42,7 +41,7 @@ Authorization: Bearer <YOUR_API_KEY>
 
 ## 创建任务
 
-建议使用 `application/json`。简化格式要求 `model`、`prompt` 和 `resolution`（或可替代分辨率的 `size`）；`duration` 可选，但建议显式传入，避免依赖模型服务的默认行为。下方另有 RollDek 专用的 `content` 格式。
+建议使用 `application/json`。简化格式要求 `model`、`prompt` 和 `resolution`（或可替代分辨率的 `size`）；`duration` 可选，但建议显式传入，避免依赖模型服务的默认行为。下方另有结构化 `content` 格式。
 
 ```sh
 curl https://coderapi.vip/v1/videos \
@@ -93,9 +92,9 @@ curl https://coderapi.vip/v1/videos \
 
 `duration` 虽不是当前接口的强制字段，但建议始终提供。未提供时，服务不会替请求补时长，预估计量按该模型的最大时长计算；模型服务可能使用自己的默认值，也可能要求显式时长。若成功任务返回实际用量，最终计量使用该实际用量。
 
-## 火山方舟格式的 content 请求
+## 结构化 content 请求
 
-四个 RollDek Seedance 模型还接受火山方舟 Seedance API 使用的 `content` 数组结构。请求仍发到你的服务 `POST /v1/videos`，模型名仍使用本服务开放的 ID：
+四个扩展模型还接受 `content` 数组结构。请求仍发到本服务 `POST /v1/videos`，模型名使用本服务开放的 ID：
 
 ```sh
 curl https://coderapi.vip/v1/videos \
@@ -122,7 +121,7 @@ curl https://coderapi.vip/v1/videos \
 
 | 字段 | 规则 |
 | --- | --- |
-| `model` | 必填；使用上方四个 RollDek 模型 ID。 |
+| `model` | 必填；使用上方四个扩展模型 ID。 |
 | `content` | 必填非空数组，且至少包含一个非空 `text` 项。 |
 | `content[].type=text` | 项目结构为 `{"type":"text","text":"..."}`。 |
 | `content[].type=image_url` | 使用 `image_url.url` 和 `role`；role 为 `reference_image`、`first_frame` 或 `last_frame`。 |
@@ -134,9 +133,9 @@ curl https://coderapi.vip/v1/videos \
 | `generate_audio`、`watermark` | 可选布尔值。 |
 | `seed` | 可选整数。 |
 
-各媒体项的 URL 使用可供生成服务访问的 HTTPS 地址；`asset://ast-...` 仅在该 RollDek API Key 已获授权时可用。本地文件上传不支持。首尾帧最多各一张，首尾帧模式不能与参考图片或参考视频混合。`content` 格式不能和简化格式的 `prompt`、`input_reference`、`reference_video_urls` 等字段混用。
+各媒体项必须使用可公开访问的 HTTPS 地址；本地文件和资源 ID 均不支持。首尾帧最多各一张，首尾帧模式不能与参考图片或参考视频混合。`content` 格式不能和简化格式的 `prompt`、`input_reference`、`reference_video_urls` 等字段混用。
 
-这是 RollDek 当前文档支持的火山请求结构子集，不是全部火山 API 参数透传。当前 RollDek 接口文档没有列出的选项（例如 `ratio: "adaptive"`、`duration: -1`、`output_format`、`priority`、回调和草稿等）会被拒绝；本服务也不支持此渠道使用 `1080p`。其他非 RollDek 模型继续使用上面的简化请求格式。
+该结构仅支持本服务列出的字段，不会透传未列出的参数。`ratio: "adaptive"`、`duration: -1`、`output_format`、`priority`、回调和草稿等字段会被拒绝；这四个模型当前只支持 `720p`。其他模型继续使用上面的简化请求格式。
 
 ## 图生视频
 
@@ -154,11 +153,11 @@ curl https://coderapi.vip/v1/videos \
 
 单张图片可使用 `input_reference`、`image` 或 `image_url`，值为 HTTPS URL；`input_reference` 也可写为 `{"url":"https://..."}`。多张图可使用 `reference_image_urls`、`images` 或 `image_urls` 数组。第一帧/末帧可分别使用 `first_frame_image_url` 和 `last_frame_image_url`。
 
-本服务目前不接受这四个 Seedance 模型的本地 multipart 图片文件上传。图片链接应在提交任务后仍有效，并允许生成服务读取；需要登录 Cookie、浏览器 Referer 或客户端私有网络才能访问的 URL 通常不能作为图片输入。`asset://...` 不是本指南承诺的通用客户上传接口，请不要自行构造。
+本服务目前不接受这四个模型的本地 multipart 图片文件上传或资源 ID。图片链接应在提交任务后仍有效，并允许生成服务读取；需要登录 Cookie、浏览器 Referer 或客户端私有网络才能访问的 URL 通常不能作为图片输入。
 
-若使用火山方舟格式，请将图片项写入 `content`，并按场景选择 `reference_image`、`first_frame` 或 `last_frame` 角色。此结构只用于四个 RollDek Seedance 模型。
+若使用结构化格式，请将图片项写入 `content`，并按场景选择 `reference_image`、`first_frame` 或 `last_frame` 角色。此结构只用于上方列出的四个模型。
 
-可选的 `reference_video_urls` 和 `reference_audio_urls` 接受 HTTPS URL 数组。它们是否能用于具体模型，仍受模型能力和服务端配置约束。RollDek 模型也可以通过 `content` 中的 `video_url` / `audio_url` 输入。第一帧/末帧模式不能与参考视频或其他参考图片混用。
+可选的 `reference_video_urls` 和 `reference_audio_urls` 接受 HTTPS URL 数组。它们是否能用于具体模型，仍受模型能力和服务端配置约束。四个扩展模型也可以通过 `content` 中的 `video_url` / `audio_url` 输入。第一帧/末帧模式不能与参考视频或其他参考图片混用。
 
 ## 参考视频生成
 
@@ -179,7 +178,7 @@ curl https://coderapi.vip/v1/videos \
   }'
 ```
 
-参考视频 URL 应在任务处理期间保持有效，并允许生成服务直接访问。若是私有素材，先将其放到你控制的、生成服务可以访问的 HTTPS 存储，再传入该 URL。若模型不支持参考视频，上游可能返回参数或能力错误。
+参考视频 URL 应在任务处理期间保持有效，并允许生成服务直接访问。若是私有素材，先将其放到你控制的、生成服务可以访问的 HTTPS 存储，再传入该 URL。若模型不支持参考视频，服务会返回参数或能力错误。
 
 ## 查询与下载
 
@@ -198,7 +197,7 @@ curl "https://coderapi.vip/v1/videos/$VIDEO_ID" \
 - `failed`：任务失败；检查响应中的 `error.code` 和 `error.message`。
 - `unknown`：服务端暂时无法映射任务状态；重新查询或联系服务方排查。
 
-状态查询响应会保留本服务任务 ID，不会把供应商私有任务 ID 或视频 CDN 地址交给客户端。完成后通过本服务下载：
+状态查询响应会保留本服务任务 ID，不会把内部任务 ID 或媒体存储地址交给客户端。完成后通过本服务下载：
 
 ```sh
 curl "https://coderapi.vip/v1/videos/$VIDEO_ID/content" \
@@ -222,6 +221,6 @@ curl "https://coderapi.vip/v1/videos/$VIDEO_ID/content" \
 
 ## 自研平台实现建议
 
-下游自研平台只需实现三项 HTTP 操作：向你的服务创建任务、按 `id` 查询任务、从你的服务下载完成的视频。使用普通 HTTPS 客户端即可，不需要直接对接 RollDek，也不需要接入 New API 插件 SDK。视频任务是异步的，平台应保存 `id` 并在后台轮询；不要在用户浏览器中暴露长期 API Key。图生视频则在调用前将本地文件上传至可供生成服务访问的 HTTPS 图床。
+下游自研平台只需实现三项 HTTP 操作：向本服务创建任务、按 `id` 查询任务、从本服务下载完成的视频。使用普通 HTTPS 客户端即可，不需要调用其他模型 API，也不需要接入 New API 插件 SDK。视频任务是异步的，平台应保存 `id` 并在后台轮询；不要在用户浏览器中暴露长期 API Key。图生视频则在调用前将本地文件上传至可供生成服务访问的 HTTPS 图床。
 
 若使用官方 OpenAI SDK，请先确认该 SDK 版本仍保留 Videos API 方法，以及其请求字段与本指南列出的接口参数兼容。由于本接口仅承诺上面列出的兼容子集，使用原始 HTTP 请求通常更直接。

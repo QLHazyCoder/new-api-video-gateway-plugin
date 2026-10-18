@@ -66,7 +66,7 @@
       }
     },
     {
-      "name": "accepts Grok multipart image input",
+      "name": "accepts multipart image input",
       "hook": "protocols",
       "path": ["openai_video", "decodeRequest"],
       "args": [
@@ -271,7 +271,7 @@
       }
     },
     {
-      "name": "reports Grok image usage",
+      "name": "reports image usage",
       "hook": "extractUsage",
       "args": [
         {
@@ -293,7 +293,7 @@
       }
     },
     {
-      "name": "rejects Sora and unknown models",
+      "name": "rejects unsupported and unknown models",
       "hook": "protocols",
       "path": ["openai_video", "decodeRequest"],
       "args": [
@@ -301,14 +301,14 @@
           "body": {
             "kind": "json",
             "value": {
-              "model": "sora-2",
+              "model": "unsupported-video-model",
               "prompt": "A paper boat",
               "duration": 4,
               "resolution": "720p"
             }
           },
-          "model": "sora-2",
-          "upstreamModel": "sora-2"
+          "model": "unsupported-video-model",
+          "upstreamModel": "unsupported-video-model"
         }
       ],
       "expectedError": "unsupported video model"
@@ -342,19 +342,19 @@
       "expected": {"kind":"submit","model":"seedance-2.0-offical","action":"image_to_video","requestBody":{"model":"seedance-2.0-offical","prompt":"Animate these references","duration":5,"resolution":"720p","reference_image_urls":["https://media.example/a.png","https://media.example/b.png"]}}
     },
     {
-      "name": "preserves an alias while submitting the mapped upstream model",
+      "name": "preserves the client alias while using the configured model",
       "hook": "buildSubmitRequest",
       "args": [{"requestBody":{"model":"customer-video","prompt":"An alias request","duration":4,"resolution":"720p"},"model":"customer-video","upstreamModel":"grok-imagine-video-1.5","baseUrl":"https://coderapi.vip","apiKey":"test-key"}],
       "expected": {"url":"https://coderapi.vip/v1/videos","method":"POST","headers":{"Content-Type":"application/json","Authorization":"Bearer test-key"},"body":{"model":"grok-imagine-video-1.5","prompt":"An alias request","duration":4,"resolution":"720p","aspect_ratio":"16:9"},"action":"text_to_video"}
     },
     {
-      "name": "keeps a Grok multipart placeholder for the host to inline",
+      "name": "keeps a multipart placeholder for host-side resolution",
       "hook": "buildSubmitRequest",
       "args": [{"requestBody":{"model":"grok-imagine-video-1.5","prompt":"Animate the upload","duration":6,"resolution":"1080p","image":{"url":{"__fileRef":"request_file:input_reference","encoding":"dataUrl"}}},"model":"grok-imagine-video-1.5","upstreamModel":"grok-imagine-video-1.5","files":[{"ref":"request_file:input_reference","field":"input_reference","filename":"still.png","mimeType":"image/png","size":1024}],"baseUrl":"https://coderapi.vip","apiKey":"test-key"}],
       "expected": {"url":"https://coderapi.vip/v1/videos","method":"POST","headers":{"Content-Type":"application/json","Authorization":"Bearer test-key"},"body":{"model":"grok-imagine-video-1.5","prompt":"Animate the upload","duration":6,"resolution":"1080p","image":{"url":{"__fileRef":"request_file:input_reference","encoding":"dataUrl"}}},"action":"image_to_video"}
     },
     {
-      "name": "settles the actual Grok video duration",
+      "name": "settles the actual video duration",
       "hook": "extractUsageOnComplete",
       "args": [{"model":"grok-imagine-video-1.5","upstreamModel":"grok-imagine-video-1.5"},{},{"status":"completed","resolution":"1080p","video":{"duration":9}}],
       "expected": {"duration":9,"resolution":"1080p"}
@@ -366,14 +366,14 @@
       "expected": {}
     },
     {
-      "name": "rejects 1080p for classic Grok",
+      "name": "rejects 1080p for the classic model",
       "hook": "protocols",
       "path": ["openai_video", "decodeRequest"],
       "args": [{"body":{"kind":"json","value":{"model":"grok-imagine-video","prompt":"A paper boat","duration":4,"resolution":"1080p"}},"model":"grok-imagine-video","upstreamModel":"grok-imagine-video"}],
       "expectedError": "use 480p, 720p"
     },
     {
-      "name": "accepts MiniMax H3 public image and audio references",
+      "name": "accepts H3 public image and audio references",
       "hook": "protocols",
       "path": ["openai_video", "decodeRequest"],
       "args": [{"body":{"kind":"json","value":{"model":"H3","prompt":"Animate the references","duration":4,"resolution":"720p","aspect_ratio":"16:9","reference_image_urls":["https://media.example/still.png"],"reference_audio_urls":["https://media.example/voice.mp3"]}},"model":"H3","upstreamModel":"H3"}],
@@ -400,87 +400,87 @@
       "expectedError": "at most 3"
     },
     {
-      "name": "accepts RollDek Seedance 2.0 at 720p",
+      "name": "accepts Extended Seedance 2.0 at 720p",
       "hook": "protocols",
       "path": ["openai_video", "decodeRequest"],
       "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-0-260128","prompt":"A slow camera move","duration":15,"resolution":"720p"}},"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"}],
       "expected": {"kind":"submit","model":"doubao-seedance-2-0-260128","action":"text_to_video","requestBody":{"model":"doubao-seedance-2-0-260128","prompt":"A slow camera move","resolution":"720p","aspect_ratio":"16:9","duration":15}}
     },
     {
-      "name": "accepts RollDek Seedance 2.0 fast at its duration limit",
+      "name": "accepts Extended Seedance 2.0 fast at its duration limit",
       "hook": "protocols",
       "path": ["openai_video", "decodeRequest"],
       "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-0-fast-260128","prompt":"A slow camera move","duration":15,"resolution":"720p"}},"model":"doubao-seedance-2-0-fast-260128","upstreamModel":"doubao-seedance-2-0-fast-260128"}],
       "expected": {"kind":"submit","model":"doubao-seedance-2-0-fast-260128","action":"text_to_video","requestBody":{"model":"doubao-seedance-2-0-fast-260128","prompt":"A slow camera move","resolution":"720p","aspect_ratio":"16:9","duration":15}}
     },
     {
-      "name": "accepts RollDek Seedance 2.0 mini at its duration limit",
+      "name": "accepts Extended Seedance 2.0 mini at its duration limit",
       "hook": "protocols",
       "path": ["openai_video", "decodeRequest"],
       "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-0-mini-260615","prompt":"A slow camera move","duration":15,"resolution":"720p"}},"model":"doubao-seedance-2-0-mini-260615","upstreamModel":"doubao-seedance-2-0-mini-260615"}],
       "expected": {"kind":"submit","model":"doubao-seedance-2-0-mini-260615","action":"text_to_video","requestBody":{"model":"doubao-seedance-2-0-mini-260615","prompt":"A slow camera move","resolution":"720p","aspect_ratio":"16:9","duration":15}}
     },
     {
-      "name": "accepts RollDek Seedance 2.5 at its duration limit",
+      "name": "accepts Extended Seedance 2.5 at its duration limit",
       "hook": "protocols",
       "path": ["openai_video", "decodeRequest"],
       "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-5-260628","prompt":"A slow camera move","duration":30,"resolution":"720p"}},"model":"doubao-seedance-2-5-260628","upstreamModel":"doubao-seedance-2-5-260628"}],
       "expected": {"kind":"submit","model":"doubao-seedance-2-5-260628","action":"text_to_video","requestBody":{"model":"doubao-seedance-2-5-260628","prompt":"A slow camera move","resolution":"720p","aspect_ratio":"16:9","duration":30}}
     },
     {
-      "name": "accepts RollDek authorized image asset IDs",
+      "name": "rejects non-HTTPS resource IDs",
       "hook": "protocols",
       "path": ["openai_video", "decodeRequest"],
-      "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-0-260128","prompt":"Animate the still","duration":6,"resolution":"720p","input_reference":"asset://ast-image_123"}},"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"}],
-      "expected": {"kind":"submit","model":"doubao-seedance-2-0-260128","action":"image_to_video","requestBody":{"model":"doubao-seedance-2-0-260128","prompt":"Animate the still","resolution":"720p","aspect_ratio":"16:9","duration":6,"input_reference":"asset://ast-image_123"}}
+      "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-0-260128","prompt":"Animate the still","duration":6,"resolution":"720p","input_reference":"service-asset-123"}},"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"}],
+      "expectedError": "must be a public HTTPS URL"
     },
     {
-      "name": "rejects RollDek local multipart images",
+      "name": "rejects Extended local multipart images",
       "hook": "protocols",
       "path": ["openai_video", "decodeRequest"],
       "args": [{"body":{"kind":"multipart","fields":{"model":["doubao-seedance-2-0-260128"],"prompt":["Animate the upload"],"duration":["6"],"resolution":["720p"]},"files":[{"ref":"request_file:image","field":"image","filename":"still.png","mimeType":"image/png","size":1024}]},"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"}],
       "expectedError": "requires a public HTTPS image URL"
     },
     {
-      "name": "rejects RollDek Seedance 1080p",
+      "name": "rejects Extended Seedance 1080p",
       "hook": "protocols",
       "path": ["openai_video", "decodeRequest"],
       "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-0-260128","prompt":"A slow camera move","duration":6,"resolution":"1080p"}},"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"}],
       "expectedError": "use 720p"
     },
     {
-      "name": "rejects RollDek Seedance duration above the model limit",
+      "name": "rejects Extended Seedance duration above the model limit",
       "hook": "protocols",
       "path": ["openai_video", "decodeRequest"],
       "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-5-260628","prompt":"A slow camera move","duration":31,"resolution":"720p"}},"model":"doubao-seedance-2-5-260628","upstreamModel":"doubao-seedance-2-5-260628"}],
       "expectedError": "duration must be an integer between 4 and 30"
     },
     {
-      "name": "estimates RollDek Seedance token usage for a reference video",
+      "name": "estimates Extended Seedance token usage for a reference video",
       "hook": "extractUsage",
       "args": [{"requestBody":{"model":"doubao-seedance-2-0-260128","prompt":"Continue the clip","duration":6,"resolution":"720p","reference_video_urls":["https://media.example/reference.mp4"]},"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"}],
       "expected": {"tokens":129600,"video_input":"video"}
     },
     {
-      "name": "uses RollDek Seedance model maximum when duration is omitted",
+      "name": "uses Extended Seedance model maximum when duration is omitted",
       "hook": "extractUsage",
       "args": [{"requestBody":{"model":"doubao-seedance-2-5-260628","prompt":"A slow camera move","resolution":"720p"},"model":"doubao-seedance-2-5-260628","upstreamModel":"doubao-seedance-2-5-260628"}],
       "expected": {"tokens":648000,"video_input":"none"}
     },
     {
-      "name": "uses source-reported RollDek Seedance tokens on completion",
+      "name": "uses task-reported token usage on completion",
       "hook": "extractUsageOnComplete",
       "args": [{"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"},{},{"status":"completed","usage":{"total_tokens":111222},"duration":6,"resolution":"720p"}],
       "expected": {"tokens":111222}
     },
     {
-      "name": "ignores out-of-range RollDek completion token usage",
+      "name": "ignores out-of-range Extended completion token usage",
       "hook": "extractUsageOnComplete",
       "args": [{"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"},{},{"status":"completed","usage":{"total_tokens":2147483648}}],
       "expected": {}
     },
     {
-      "name": "accepts Volcano-shaped content JSON for RollDek Seedance",
+      "name": "accepts structured content JSON for the extended model",
       "hook": "protocols",
       "path": ["openai_video", "decodeRequest"],
       "args": [{
@@ -490,7 +490,7 @@
             {"type":"text","text":"Continue the scene"},
             {"type":"image_url","image_url":{"url":"https://media.example/still.png"},"role":"reference_image"},
             {"type":"video_url","video_url":{"url":"https://media.example/reference.mp4"},"role":"reference_video"},
-            {"type":"audio_url","audio_url":{"url":"asset://ast-audio_123"},"role":"reference_audio"}
+            {"type":"audio_url","audio_url":{"url":"https://media.example/audio.mp3"},"role":"reference_audio"}
           ],
           "duration":6,"resolution":"720p","ratio":"9:16","generate_audio":true,"watermark":false,"seed":42
         }},
@@ -502,13 +502,13 @@
           {"type":"text","text":"Continue the scene"},
           {"type":"image_url","image_url":{"url":"https://media.example/still.png"},"role":"reference_image"},
           {"type":"video_url","video_url":{"url":"https://media.example/reference.mp4"},"role":"reference_video"},
-          {"type":"audio_url","audio_url":{"url":"asset://ast-audio_123"},"role":"reference_audio"}
+          {"type":"audio_url","audio_url":{"url":"https://media.example/audio.mp3"},"role":"reference_audio"}
         ],
         "resolution":"720p","ratio":"9:16","duration":6,"generate_audio":true,"watermark":false,"seed":42
       }}
     },
     {
-      "name": "forwards Volcano-shaped content JSON to the gateway",
+      "name": "forwards structured content JSON to the gateway",
       "hook": "buildSubmitRequest",
       "args": [{
         "requestBody": {
@@ -537,7 +537,7 @@
       }
     },
     {
-      "name": "uses native RollDek reference video for token pricing facts",
+      "name": "uses structured reference video for token usage facts",
       "hook": "extractUsage",
       "args": [{"requestBody":{
         "model":"doubao-seedance-2-0-260128",
@@ -550,7 +550,7 @@
       "expected":{"tokens":129600,"video_input":"video"}
     },
     {
-      "name": "rejects Volcano-only adaptive ratio on the RollDek route",
+      "name": "rejects unsupported adaptive ratio in structured content",
       "hook": "protocols",
       "path": ["openai_video", "decodeRequest"],
       "args": [{"body":{"kind":"json","value":{
@@ -561,7 +561,7 @@
       "expectedError":"ratio must be one of 16:9, 9:16, 1:1, 21:9, 4:3, 3:4"
     },
     {
-      "name": "keeps Volcano content format scoped to RollDek models",
+      "name": "keeps structured content format scoped to supported models",
       "hook": "protocols",
       "path": ["openai_video", "decodeRequest"],
       "args": [{"body":{"kind":"json","value":{
@@ -569,7 +569,7 @@
         "content":[{"type":"text","text":"Animate the scene"}],
         "duration":6,"resolution":"720p"
       }},"model":"seedance-2.0","upstreamModel":"seedance-2.0"}],
-      "expectedError":"content request format is only supported for RollDek Seedance models"
+      "expectedError":"structured content format is only supported for configured models"
     }
   ]
 }
