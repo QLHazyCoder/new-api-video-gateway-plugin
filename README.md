@@ -37,16 +37,16 @@
 | `seedance-2.0-mini-offical` | 480p、720p | 1–3600 秒 |
 | `seedance-2.0-offical` | 480p、720p、1080p | 1–3600 秒 |
 | `H3` | 720p | 4–15 秒；最多 9 张图片、3 条音频 |
-| `doubao-seedance-2-0-260128` | 720p | 4–15 秒 |
-| `doubao-seedance-2-0-fast-260128` | 720p | 4–15 秒 |
-| `doubao-seedance-2-0-mini-260615` | 720p | 4–15 秒 |
-| `doubao-seedance-2-5-260628` | 720p | 4–30 秒 |
+| `doubao-seedance-2-0-260128` | 480p、720p、1080p、4K | 4–15 秒 |
+| `doubao-seedance-2-0-fast-260128` | 480p、720p | 4–15 秒 |
+| `doubao-seedance-2-0-mini-260615` | 480p、720p | 4–15 秒 |
+| `doubao-seedance-2-5-260628` | 480p、720p、1080p | 4–30 秒 |
 
 New API 渠道支持将模型 ID 映射为客户侧别名；映射规则由服务配置决定。
 
 ## New API 配置
 
-1. 在根管理员的任务插件页面上传 `plugin.js`，启用 `coder-video-gateway@1.0.3`。
+1. 在根管理员的任务插件页面上传 `plugin.js`，启用 `coder-video-gateway@1.0.4`。
 2. 新建渠道，渠道类型选择 **Task Plugin**，不要选择 OpenAI 类型。
 3. 任务插件选择 `coder-video-gateway`。
 4. Base URL 填写网关地址，例如 `https://coderapi.vip`。
@@ -63,7 +63,7 @@ New API 渠道支持将模型 ID 映射为客户侧别名；映射规则由服�
 
 `seedance-2.0`、`seedance-2.5`、三个 `seedance-2.0-...` 模型及 `H3` 使用可公开访问的 HTTP(S) 图片 URL，不接受本地 multipart 图片。四个 `doubao-seedance-...` 模型接受 HTTPS 图片 URL，也不接受本地 multipart 图片。需要让服务读取的素材应使用可访问的 HTTPS 地址，并放入 `input_reference`、`image` 或 `image_url`。
 
-四个 `doubao-seedance-...` 模型还接受结构化 JSON `content` 数组，请求仍发送到标准 `POST /v1/videos`。此格式支持 `text`、`image_url`、`video_url`、`audio_url` 内容项，以及 `duration`、`resolution`、`ratio`、`generate_audio`、`watermark`、`seed`。该格式固定为 `720p`，宽高比限于 `16:9`、`9:16`、`1:1`、`21:9`、`4:3`、`3:4`；不支持 `adaptive`、`duration: -1` 及未列出的字段。详细格式见下游接入文档。
+四个 `doubao-seedance-...` 模型还接受结构化 JSON `content` 数组，请求仍发送到标准 `POST /v1/videos`。此格式支持 `text`、`image_url`、`video_url`、`audio_url` 内容项，以及 `duration`、`resolution`、`ratio`、`generate_audio`、`watermark`、`seed`。可用分辨率因模型而异，见上表；宽高比限于 `16:9`、`9:16`、`1:1`、`21:9`、`4:3`、`3:4`；不支持 `adaptive`、`duration: -1` 及未列出的字段。详细格式见下游接入文档。
 
 ## 计量与价格
 
@@ -72,7 +72,7 @@ New API 渠道支持将模型 ID 映射为客户侧别名；映射规则由服�
 - 标准模型：`duration`、`resolution`、`image_count`
 - 支持参考视频的模型：另含 `has_video`
 - `H3`：另含 `audio_count`
-- 四个 `doubao-seedance-...` 模型：`tokens`、`video_input`
+- 四个 `doubao-seedance-...` 模型：`tokens`、`duration`、`resolution`、`video_input`
 
 四个扩展模型在提交阶段预估 token 数，成功任务查询阶段优先使用任务结果中的 `usage.total_tokens`；没有有效实际用量时保留预估值。价格由 New API 模型定价页面配置，插件不会写入价格。
 

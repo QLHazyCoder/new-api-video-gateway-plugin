@@ -32,10 +32,10 @@ Authorization: Bearer <YOUR_API_KEY>
 
 | 模型 ID | 输出分辨率 | 时长 |
 | --- | --- | --- |
-| `doubao-seedance-2-0-260128` | `720p` | 4-15 秒 |
-| `doubao-seedance-2-0-fast-260128` | `720p` | 4-15 秒 |
-| `doubao-seedance-2-0-mini-260615` | `720p` | 4-15 秒 |
-| `doubao-seedance-2-5-260628` | `720p` | 4-30 秒 |
+| `doubao-seedance-2-0-260128` | `480p`、`720p`、`1080p`、`4k` | 4-15 秒 |
+| `doubao-seedance-2-0-fast-260128` | `480p`、`720p` | 4-15 秒 |
+| `doubao-seedance-2-0-mini-260615` | `480p`、`720p` | 4-15 秒 |
+| `doubao-seedance-2-5-260628` | `480p`、`720p`、`1080p` | 4-30 秒 |
 
 模型名必须与服务端开放的 ID 完全一致。当前插件不接受这些白名单之外的模型名。
 
@@ -76,8 +76,8 @@ curl https://coderapi.vip/v1/videos \
 | `model` | 必填；使用上方四个模型 ID 之一。 |
 | `prompt` | 简化格式必填；非空字符串。原生 `content` 格式则要求至少一个非空 `content[].text`。 |
 | `duration` 或 `seconds` | 可选；提供时必须是 4 到模型最大秒数之间的整数。两者同时传入时必须相同。未提供时按该模型最大时长预估预扣用量。 |
-| `resolution` | 必填；当前只支持 `720p`。可用 `size` 替代。 |
-| `size` | 可替代 `resolution`：接受 `720p`、`1280x720` 或 `720x1280`。宽高尺寸会分别选择 `16:9` 或 `9:16`。 |
+| `resolution` | 必填；支持范围按上表所选模型确定。可用 `size` 替代。 |
+| `size` | 可替代 `resolution`。可传模型支持的分辨率名称；也可传像素尺寸：`854x480`/`480x854`、`1280x720`/`720x1280`、`1920x1080`/`1080x1920`、`3840x2160`/`2160x3840`。像素尺寸会同时选择对应的 `16:9` 或 `9:16` 比例，且仍受该模型分辨率范围限制。 |
 | `aspect_ratio` | 可选：`16:9`、`9:16`、`1:1`、`21:9`、`4:3`、`3:4`；未传时默认为 `16:9`。也可使用别名 `aspectRatio` 或 `ratio`。 |
 | `input_reference` / `image` / `image_url` | 可选单张参考图片 URL；仅 HTTPS。 |
 | `reference_image_urls` | 可选参考图片 URL 数组；也可使用别名 `images` 或 `image_urls`。 |
@@ -128,14 +128,14 @@ curl https://coderapi.vip/v1/videos \
 | `content[].type=video_url` | 使用 `video_url.url`，role 固定为 `reference_video`。 |
 | `content[].type=audio_url` | 使用 `audio_url.url`，role 固定为 `reference_audio`。 |
 | `duration` | 可选整数；Seedance 2.0 系列为 4–15 秒，Seedance 2.5 为 4–30 秒。 |
-| `resolution` | 必填；当前下游渠道只开放 `720p`。 |
+| `resolution` | 必填；可用范围按上方模型表确定。 |
 | `ratio` | 可选：`16:9`、`9:16`、`1:1`、`21:9`、`4:3`、`3:4`；默认 `16:9`。 |
 | `generate_audio`、`watermark` | 可选布尔值。 |
 | `seed` | 可选整数。 |
 
 各媒体项必须使用可公开访问的 HTTPS 地址；本地文件和资源 ID 均不支持。首尾帧最多各一张，首尾帧模式不能与参考图片或参考视频混合。`content` 格式不能和简化格式的 `prompt`、`input_reference`、`reference_video_urls` 等字段混用。
 
-该结构仅支持本服务列出的字段，不会透传未列出的参数。`ratio: "adaptive"`、`duration: -1`、`output_format`、`priority`、回调和草稿等字段会被拒绝；这四个模型当前只支持 `720p`。其他模型继续使用上面的简化请求格式。
+该结构仅支持本服务列出的字段，不会透传未列出的参数。`ratio: "adaptive"`、`duration: -1`、`output_format`、`priority`、回调和草稿等字段会被拒绝；四个模型的分辨率分别按上方模型表校验。其他模型继续使用上面的简化请求格式。
 
 ## 图生视频
 

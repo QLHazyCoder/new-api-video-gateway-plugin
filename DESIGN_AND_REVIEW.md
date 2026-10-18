@@ -43,10 +43,10 @@ New API openai_video 主机协议
 | `seedance-2.0-mini-offical` | 480p、720p | 1–3600 秒 |
 | `seedance-2.0-offical` | 480p、720p、1080p | 1–3600 秒 |
 | `H3` | 720p | 4–15 秒；最多 9 张图片、3 条音频 |
-| `doubao-seedance-2-0-260128` | 720p | 4–15 秒 |
-| `doubao-seedance-2-0-fast-260128` | 720p | 4–15 秒 |
-| `doubao-seedance-2-0-mini-260615` | 720p | 4–15 秒 |
-| `doubao-seedance-2-5-260628` | 720p | 4–30 秒 |
+| `doubao-seedance-2-0-260128` | 480p、720p、1080p、4K | 4–15 秒 |
+| `doubao-seedance-2-0-fast-260128` | 480p、720p | 4–15 秒 |
+| `doubao-seedance-2-0-mini-260615` | 480p、720p | 4–15 秒 |
+| `doubao-seedance-2-5-260628` | 480p、720p、1080p | 4–30 秒 |
 
 模型白名单在请求解码阶段校验。价格和倍率由 New API 模型定价配置承担；插件只报告计量事实，不写入价格。
 
@@ -64,7 +64,7 @@ New API openai_video 主机协议
 
 - 常规模型报告 `duration`、`resolution` 和 `image_count`。
 - 支持参考视频的模型额外报告 `has_video`；`H3` 额外报告 `audio_count`。
-- 四个扩展模型报告 `tokens` 和 `video_input`；成功任务结果中的有效 token 用量优先于提交阶段估算值。
+- 四个扩展模型报告 `tokens`、`duration`、`resolution` 和 `video_input`；预估 token 数随分辨率像素数缩放，成功任务结果中的有效 token 用量优先于提交阶段估算值。
 - 数值字段拒绝布尔值、数组和非整数文本；`seed`、`n`、`strength`、`grid_strength` 进行范围校验。
 - 无效或越界的任务事实不会覆盖已冻结的请求计量事实。
 
@@ -93,7 +93,7 @@ New API openai_video 主机协议
 - [x] 实现 JSON/multipart 解码、模型能力校验和公开图片 URL 校验。
 - [x] 实现结构化 `content` 子集及模型范围限制。
 - [x] 实现 usage profiles、模型映射和完成态实际用量结算。
-- [x] 维护 12 个模型白名单及各模型分辨率、时长和输入限制。
+- [x] 维护 12 个模型白名单及各模型分辨率、时长和输入限制；四个 RollDek Seedance 模型的分辨率逐模型对齐上游声明。
 
 ### 阶段三：功能回归
 
@@ -134,6 +134,15 @@ New API openai_video 主机协议
 - 兼容性：保留公开模型 ID、请求字段、结构化输入、任务路径和计量逻辑；媒体资源 ID 不再作为请求输入。
 - 配置：New API 渠道可将模型映射到客户侧别名；模型映射变更需要同步渠道配置与接入文档。
 
+### 本次 Seedance 分辨率同步
+
+- 标准 Seedance 2.0 接受 480p、720p、1080p、4K；Fast 和 Mini 接受 480p、720p；Seedance 2.5 接受 480p、720p、1080p。
+- 简化 JSON 与结构化 `content` 两种请求格式共用逐模型分辨率白名单；`size` 像素别名也按同一白名单校验。
+- usage profile 按模型拆分并公开其可用分辨率、时长和参考视频事实。
+- 提交阶段预扣 token 估算按分辨率像素数缩放；成功时仍优先使用有效 `usage.total_tokens`，并保留请求阶段的分辨率、时长和视频输入事实。
+- 变更文件：`plugin.js`、`golden.json`、`README.md`、`docs/downstream-seedance-integration.md` 和本文件；未增删目录或职责文件。
+- 验证：`go run . plugin lint /opt/qlh-main/new-api-video-gateway-plugin/plugin.js` 通过；`go run . plugin test /opt/qlh-main/new-api-video-gateway-plugin/plugin.js --fixture /opt/qlh-main/new-api-video-gateway-plugin/golden.json` 通过（54/54）；`node --check plugin.js`、fixture JSON 解析和 `git diff --check` 均通过。
+
 ## 最终审查结论
 
-下游文档与插件元数据描述公开端点、模型 ID、字段和能力，且与当前实现保持一致。插件仍按现有模型 ID 和字段执行能力校验；不支持本地上传的模型仅接受公开 HTTPS 媒体地址，不接受资源 ID。New API 插件 lint、42/42 fixture、语法、JSON、敏感信息和差异检查均通过。
+下游文档与插件元数据描述公开端点、模型 ID、字段和逐模型分辨率能力，且与当前实现保持一致。插件仍按现有模型 ID 和字段执行能力校验；不支持本地上传的模型仅接受公开 HTTPS 媒体地址，不接受资源 ID。New API 插件 lint、fixture、语法、JSON、敏感信息和差异检查结果随本次验证记录更新。

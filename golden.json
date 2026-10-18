@@ -428,6 +428,34 @@
       "expected": {"kind":"submit","model":"doubao-seedance-2-5-260628","action":"text_to_video","requestBody":{"model":"doubao-seedance-2-5-260628","prompt":"A slow camera move","resolution":"720p","aspect_ratio":"16:9","duration":30}}
     },
     {
+      "name": "accepts 480p for standard Seedance 2.0",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-0-260128","prompt":"A slow camera move","duration":6,"resolution":"480p"}},"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"}],
+      "expected": {"kind":"submit","model":"doubao-seedance-2-0-260128","action":"text_to_video","requestBody":{"model":"doubao-seedance-2-0-260128","prompt":"A slow camera move","resolution":"480p","aspect_ratio":"16:9","duration":6}}
+    },
+    {
+      "name": "accepts 1080p for standard Seedance 2.0",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-0-260128","prompt":"A slow camera move","duration":6,"resolution":"1080p"}},"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"}],
+      "expected": {"kind":"submit","model":"doubao-seedance-2-0-260128","action":"text_to_video","requestBody":{"model":"doubao-seedance-2-0-260128","prompt":"A slow camera move","resolution":"1080p","aspect_ratio":"16:9","duration":6}}
+    },
+    {
+      "name": "accepts 480p for Seedance 2.0 Mini",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-0-mini-260615","prompt":"A slow camera move","duration":6,"resolution":"480p"}},"model":"doubao-seedance-2-0-mini-260615","upstreamModel":"doubao-seedance-2-0-mini-260615"}],
+      "expected": {"kind":"submit","model":"doubao-seedance-2-0-mini-260615","action":"text_to_video","requestBody":{"model":"doubao-seedance-2-0-mini-260615","prompt":"A slow camera move","resolution":"480p","aspect_ratio":"16:9","duration":6}}
+    },
+    {
+      "name": "accepts 480p for Seedance 2.5",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-5-260628","prompt":"A slow camera move","duration":6,"resolution":"480p"}},"model":"doubao-seedance-2-5-260628","upstreamModel":"doubao-seedance-2-5-260628"}],
+      "expected": {"kind":"submit","model":"doubao-seedance-2-5-260628","action":"text_to_video","requestBody":{"model":"doubao-seedance-2-5-260628","prompt":"A slow camera move","resolution":"480p","aspect_ratio":"16:9","duration":6}}
+    },
+    {
       "name": "rejects non-HTTPS resource IDs",
       "hook": "protocols",
       "path": ["openai_video", "decodeRequest"],
@@ -442,11 +470,39 @@
       "expectedError": "requires a public HTTPS image URL"
     },
     {
-      "name": "rejects Extended Seedance 1080p",
+      "name": "accepts all four supported resolutions for standard Seedance 2.0",
       "hook": "protocols",
       "path": ["openai_video", "decodeRequest"],
-      "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-0-260128","prompt":"A slow camera move","duration":6,"resolution":"1080p"}},"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"}],
-      "expectedError": "use 720p"
+      "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-0-260128","prompt":"A slow camera move","duration":6,"resolution":"4K"}},"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"}],
+      "expected": {"kind":"submit","model":"doubao-seedance-2-0-260128","action":"text_to_video","requestBody":{"model":"doubao-seedance-2-0-260128","prompt":"A slow camera move","resolution":"4k","aspect_ratio":"16:9","duration":6}}
+    },
+    {
+      "name": "accepts a portrait 480p size alias for Seedance 2.0 Fast",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-0-fast-260128","prompt":"A slow camera move","duration":6,"size":"480x854"}},"model":"doubao-seedance-2-0-fast-260128","upstreamModel":"doubao-seedance-2-0-fast-260128"}],
+      "expected": {"kind":"submit","model":"doubao-seedance-2-0-fast-260128","action":"text_to_video","requestBody":{"model":"doubao-seedance-2-0-fast-260128","prompt":"A slow camera move","resolution":"480p","aspect_ratio":"9:16","duration":6}}
+    },
+    {
+      "name": "accepts 1080p for Seedance 2.5 in the simplified request",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-5-260628","prompt":"A slow camera move","duration":6,"resolution":"1080p"}},"model":"doubao-seedance-2-5-260628","upstreamModel":"doubao-seedance-2-5-260628"}],
+      "expected": {"kind":"submit","model":"doubao-seedance-2-5-260628","action":"text_to_video","requestBody":{"model":"doubao-seedance-2-5-260628","prompt":"A slow camera move","resolution":"1080p","aspect_ratio":"16:9","duration":6}}
+    },
+    {
+      "name": "rejects 1080p for Seedance 2.0 Fast",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-0-fast-260128","prompt":"A slow camera move","duration":6,"resolution":"1080p"}},"model":"doubao-seedance-2-0-fast-260128","upstreamModel":"doubao-seedance-2-0-fast-260128"}],
+      "expectedError": "use 480p, 720p"
+    },
+    {
+      "name": "rejects 4k for Seedance 2.5",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{"model":"doubao-seedance-2-5-260628","prompt":"A slow camera move","duration":6,"resolution":"4k"}},"model":"doubao-seedance-2-5-260628","upstreamModel":"doubao-seedance-2-5-260628"}],
+      "expectedError": "use 480p, 720p, 1080p"
     },
     {
       "name": "rejects Extended Seedance duration above the model limit",
@@ -459,25 +515,43 @@
       "name": "estimates Extended Seedance token usage for a reference video",
       "hook": "extractUsage",
       "args": [{"requestBody":{"model":"doubao-seedance-2-0-260128","prompt":"Continue the clip","duration":6,"resolution":"720p","reference_video_urls":["https://media.example/reference.mp4"]},"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"}],
-      "expected": {"tokens":129600,"video_input":"video"}
+      "expected": {"tokens":129600,"duration":6,"resolution":"720p","video_input":"video"}
     },
     {
       "name": "uses Extended Seedance model maximum when duration is omitted",
       "hook": "extractUsage",
       "args": [{"requestBody":{"model":"doubao-seedance-2-5-260628","prompt":"A slow camera move","resolution":"720p"},"model":"doubao-seedance-2-5-260628","upstreamModel":"doubao-seedance-2-5-260628"}],
-      "expected": {"tokens":648000,"video_input":"none"}
+      "expected": {"tokens":648000,"duration":30,"resolution":"720p","video_input":"none"}
+    },
+    {
+      "name": "scales the token reservation to 4k output pixels",
+      "hook": "extractUsage",
+      "args": [{"requestBody":{"model":"doubao-seedance-2-0-260128","prompt":"A slow camera move","duration":6,"resolution":"4k"},"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"}],
+      "expected": {"tokens":1166400,"duration":6,"resolution":"4k","video_input":"none"}
+    },
+    {
+      "name": "scales the token reservation to 480p output pixels",
+      "hook": "extractUsage",
+      "args": [{"requestBody":{"model":"doubao-seedance-2-0-fast-260128","prompt":"A slow camera move","duration":6,"resolution":"480p"},"model":"doubao-seedance-2-0-fast-260128","upstreamModel":"doubao-seedance-2-0-fast-260128"}],
+      "expected": {"tokens":57645,"duration":6,"resolution":"480p","video_input":"none"}
+    },
+    {
+      "name": "preserves extended request facts when creating the task",
+      "hook": "parseSubmitResponse",
+      "args": [{"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128","requestBody":{"model":"doubao-seedance-2-0-260128","prompt":"Continue the clip","duration":8,"resolution":"1080p","reference_video_urls":["https://media.example/reference.mp4"]}},{"body":{"id":"task-extended-1"}}],
+      "expected": {"taskId":"task-extended-1","taskData":{"id":"task-extended-1"},"state":{"duration":8,"resolution":"1080p","video_input":"video"}}
     },
     {
       "name": "uses task-reported token usage on completion",
       "hook": "extractUsageOnComplete",
-      "args": [{"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"},{},{"status":"completed","usage":{"total_tokens":111222},"duration":6,"resolution":"720p"}],
-      "expected": {"tokens":111222}
+      "args": [{"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128","state":{"duration":6,"resolution":"720p","video_input":"none"}},{},{"status":"completed","usage":{"total_tokens":111222},"duration":6,"resolution":"720p"}],
+      "expected": {"tokens":111222,"duration":6,"resolution":"720p","video_input":"none"}
     },
     {
       "name": "ignores out-of-range Extended completion token usage",
       "hook": "extractUsageOnComplete",
-      "args": [{"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"},{},{"status":"completed","usage":{"total_tokens":2147483648}}],
-      "expected": {}
+      "args": [{"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128","state":{"duration":6,"resolution":"4k","video_input":"video"}},{},{"status":"completed","usage":{"total_tokens":2147483648}}],
+      "expected": {"duration":6,"resolution":"4k","video_input":"video"}
     },
     {
       "name": "accepts structured content JSON for the extended model",
@@ -505,6 +579,21 @@
           {"type":"audio_url","audio_url":{"url":"https://media.example/audio.mp3"},"role":"reference_audio"}
         ],
         "resolution":"720p","ratio":"9:16","duration":6,"generate_audio":true,"watermark":false,"seed":42
+      }}
+    },
+    {
+      "name": "accepts 4k in structured content for standard Seedance 2.0",
+      "hook": "protocols",
+      "path": ["openai_video", "decodeRequest"],
+      "args": [{"body":{"kind":"json","value":{
+        "model":"doubao-seedance-2-0-260128",
+        "content":[{"type":"text","text":"Animate the scene"}],
+        "duration":6,"resolution":"4k","ratio":"16:9"
+      }},"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"}],
+      "expected": {"kind":"submit","model":"doubao-seedance-2-0-260128","action":"text_to_video","requestBody":{
+        "model":"doubao-seedance-2-0-260128",
+        "content":[{"type":"text","text":"Animate the scene"}],
+        "resolution":"4k","ratio":"16:9","duration":6
       }}
     },
     {
@@ -547,7 +636,7 @@
         ],
         "duration":6,"resolution":"720p","ratio":"16:9"
       },"model":"doubao-seedance-2-0-260128","upstreamModel":"doubao-seedance-2-0-260128"}],
-      "expected":{"tokens":129600,"video_input":"video"}
+      "expected":{"tokens":129600,"duration":6,"resolution":"720p","video_input":"video"}
     },
     {
       "name": "rejects unsupported adaptive ratio in structured content",

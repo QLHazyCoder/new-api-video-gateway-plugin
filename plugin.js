@@ -4,13 +4,33 @@ const MULTIPART_MODELS = [MULTIPART_CLASSIC, MULTIPART_15];
 const H3_MODEL = "H3";
 const H3_ASPECT_RATIOS = ["9:16", "16:9", "4:3", "3:4", "1:1"];
 const EXTENDED_CONFIG = {
-  "doubao-seedance-2-0-260128": { maxDuration: 15 },
-  "doubao-seedance-2-0-fast-260128": { maxDuration: 15 },
-  "doubao-seedance-2-0-mini-260615": { maxDuration: 15 },
-  "doubao-seedance-2-5-260628": { maxDuration: 30 },
+  "doubao-seedance-2-0-260128": { maxDuration: 15, resolutions: ["480p", "720p", "1080p", "4k"] },
+  "doubao-seedance-2-0-fast-260128": { maxDuration: 15, resolutions: ["480p", "720p"] },
+  "doubao-seedance-2-0-mini-260615": { maxDuration: 15, resolutions: ["480p", "720p"] },
+  "doubao-seedance-2-5-260628": { maxDuration: 30, resolutions: ["480p", "720p", "1080p"] },
 };
 const EXTENDED_MODELS = Object.keys(EXTENDED_CONFIG);
 const EXTENDED_ASPECT_RATIOS = ["16:9", "9:16", "1:1", "21:9", "4:3", "3:4"];
+const EXTENDED_RESOLUTION_PIXELS = {
+  "480p": 854 * 480,
+  "720p": 1280 * 720,
+  "1080p": 1920 * 1080,
+  "4k": 3840 * 2160,
+};
+const EXTENDED_SIZE_OPTIONS = {
+  "480p": { resolution: "480p" },
+  "854x480": { resolution: "480p", ratio: "16:9" },
+  "480x854": { resolution: "480p", ratio: "9:16" },
+  "720p": { resolution: "720p" },
+  "1280x720": { resolution: "720p", ratio: "16:9" },
+  "720x1280": { resolution: "720p", ratio: "9:16" },
+  "1080p": { resolution: "1080p" },
+  "1920x1080": { resolution: "1080p", ratio: "16:9" },
+  "1080x1920": { resolution: "1080p", ratio: "9:16" },
+  "4k": { resolution: "4k" },
+  "3840x2160": { resolution: "4k", ratio: "16:9" },
+  "2160x3840": { resolution: "4k", ratio: "9:16" },
+};
 
 const URL_INPUT_MODELS = [
   "seedance-2.0",
@@ -136,27 +156,65 @@ const HAS_VIDEO_FIELD = {
   description: { en: "Whether a reference video is supplied", zh: "是否包含参考视频" },
 };
 
-const EXTENDED_USAGE_SCHEMA = {
-  tokens: {
-    type: "number",
-    unit: "token",
-    description: { en: "Video generation token unit price", zh: "视频生成 Token 单价" },
+const EXTENDED_VIDEO_INPUT_FIELD = {
+  enum: ["none", "video"],
+  enumLabels: {
+    none: { en: "No reference video", zh: "无参考视频" },
+    video: { en: "With reference video", zh: "含参考视频" },
   },
-  video_input: {
-    enum: ["none", "video"],
-    enumLabels: {
-      none: { en: "No reference video", zh: "无参考视频" },
-      video: { en: "With reference video", zh: "含参考视频" },
-    },
-    description: { en: "Reference video input", zh: "参考视频输入" },
-  },
+  description: { en: "Reference video input", zh: "参考视频输入" },
 };
 
 const RESOLUTION_LABELS = {
   "480p": { en: "480p", zh: "480p" },
   "720p": { en: "720p", zh: "720p" },
   "1080p": { en: "1080p", zh: "1080p" },
+  "4k": { en: "4K", zh: "4K" },
 };
+
+function extendedUsageSchema(resolutions) {
+  const schema = {
+    tokens: {
+      type: "number",
+      unit: "token",
+      description: { en: "Video generation token unit price", zh: "视频生成 Token 单价" },
+    },
+    duration: DURATION_FIELD,
+    resolution: {
+      enum: resolutions.slice(),
+      enumLabels: {},
+      description: { en: "Output video resolution", zh: "输出视频分辨率" },
+    },
+    video_input: EXTENDED_VIDEO_INPUT_FIELD,
+  };
+  for (const resolution of resolutions) schema.resolution.enumLabels[resolution] = RESOLUTION_LABELS[resolution];
+  return schema;
+}
+
+function extendedUsageExamples(resolutions) {
+  const duration = 6;
+  const first = resolutions[0];
+  const last = resolutions[resolutions.length - 1];
+  return [
+    {
+      label: first + " · 6s · no reference video",
+      facts: { tokens: estimateExtendedTokens(duration, first), duration: duration, resolution: first, video_input: "none" },
+    },
+    {
+      label: last + " · 6s · reference video",
+      facts: { tokens: estimateExtendedTokens(duration, last), duration: duration, resolution: last, video_input: "video" },
+    },
+  ];
+}
+
+const EXTENDED_USAGE_PROFILES = EXTENDED_MODELS.map(function (model) {
+  const resolutions = EXTENDED_CONFIG[model].resolutions;
+  return {
+    models: [model],
+    schema: extendedUsageSchema(resolutions),
+    examples: extendedUsageExamples(resolutions),
+  };
+});
 
 function usageSchema(resolutions, includeVideo) {
   const schema = {
@@ -182,7 +240,7 @@ export const meta = {
     en: "Video generation through a standard OpenAI-compatible interface",
     zh: "通过标准 OpenAI 兼容接口提供视频生成服务",
   },
-  version: "1.0.3",
+  version: "1.0.4",
   author: { name: "QLHazyCoder" },
   website: "https://coderapi.vip",
   baseUrl: "https://coderapi.vip",
@@ -230,14 +288,7 @@ export const meta = {
         { label: "720p 15s · 9 images · 3 audio", facts: { duration: 15, resolution: "720p", image_count: 9, audio_count: 3 } },
       ],
     },
-    {
-      models: EXTENDED_MODELS,
-      schema: EXTENDED_USAGE_SCHEMA,
-      examples: [
-        { label: "720p · 6s · no reference video", facts: { tokens: 129600, video_input: "none" } },
-        { label: "720p · 6s · reference video", facts: { tokens: 129600, video_input: "video" } },
-      ],
-    },
+    ...EXTENDED_USAGE_PROFILES,
   ],
 };
 
@@ -326,7 +377,7 @@ function durationFor(request, model) {
 function normalizeResolution(value, model) {
   const raw = trimmed(value).toLowerCase();
   const resolution = raw === "480" ? "480p" : raw === "720" ? "720p" : raw === "1080" ? "1080p" : raw;
-  const allowed = isExtended(model) ? ["720p"] : model === H3_MODEL ? ["720p"] : supportsMultipartInput(model)
+  const allowed = isExtended(model) ? EXTENDED_CONFIG[model].resolutions : model === H3_MODEL ? ["720p"] : supportsMultipartInput(model)
     ? model === MULTIPART_CLASSIC
       ? ["480p", "720p"]
       : MULTIPART_RESOLUTIONS
@@ -490,8 +541,10 @@ function audioCount(request) {
   return Array.isArray(request.reference_audio_urls) ? request.reference_audio_urls.length : 0;
 }
 
-function estimateExtendedTokens(duration) {
-  return Math.ceil((duration * 1280 * 720 * 24) / 1024);
+function estimateExtendedTokens(duration, resolution) {
+  const pixels = EXTENDED_RESOLUTION_PIXELS[resolution];
+  if (!pixels) throw new Error("unsupported output resolution for token estimate: " + resolution);
+  return Math.ceil((duration * pixels * 24) / 1024);
 }
 
 function hasReferenceVideo(request) {
@@ -687,8 +740,7 @@ function normalizeExtendedNativeRequest(request, model, uploadedFile) {
     if (typeof request.duration !== "number") throw new Error("duration must be an integer");
     duration = integerValue(request.duration, "duration", 4, config.maxDuration);
   }
-  const resolution = stringValue(request.resolution, "resolution");
-  if (resolution !== "720p") throw new Error("resolution is not supported by " + model + "; use 720p");
+  const resolution = normalizeResolution(stringValue(request.resolution, "resolution"), model);
 
   let ratio = "16:9";
   if (hasOwn(request, "ratio")) {
@@ -727,19 +779,15 @@ function normalizeExtendedRequest(request, model, uploadedFile) {
     return integerValue(value, field, 4, config.maxDuration);
   });
   const size = hasValue(request.size) ? trimmed(request.size).toLowerCase() : "";
-  const sizeOptions = {
-    "720p": { resolution: "720p" },
-    "1280x720": { resolution: "720p", ratio: "16:9" },
-    "720x1280": { resolution: "720p", ratio: "9:16" },
-  };
-  const sizeOption = size ? sizeOptions[size] : undefined;
-  if (size && !sizeOption) throw new Error("size must be 720p, 1280x720, or 720x1280");
+  const sizeOption = size ? EXTENDED_SIZE_OPTIONS[size] : undefined;
+  if (size && !sizeOption) throw new Error("size must be a supported resolution name or 16:9/9:16 pixel size");
   const suppliedResolution = hasValue(request.resolution) ? normalizeResolution(request.resolution, model) : undefined;
-  if (suppliedResolution && sizeOption && suppliedResolution !== sizeOption.resolution) {
+  const sizeResolution = sizeOption ? normalizeResolution(sizeOption.resolution, model) : undefined;
+  if (suppliedResolution && sizeResolution && suppliedResolution !== sizeResolution) {
     throw new Error("size and resolution must select the same output resolution");
   }
-  const resolution = suppliedResolution || (sizeOption && sizeOption.resolution);
-  if (!resolution) throw new Error("resolution is required; use 720p");
+  const resolution = suppliedResolution || sizeResolution;
+  if (!resolution) throw new Error("resolution is required; choose one of " + config.resolutions.join(", "));
 
   const ratio = aliasValue(request, ["aspect_ratio", "aspectRatio", "ratio"], "aspect ratio", function (value, field) {
     const normalized = stringValue(value, field);
@@ -902,7 +950,17 @@ export function parseSubmitResponse(_ctx, response) {
   const body = objectBody(response);
   const taskId = trimmed(body.id || body.task_id || body.request_id);
   if (!taskId) throw new Error(failureReason(body, "video gateway response did not include a task id"));
-  return { taskId: taskId, taskData: response && response.body ? response.body : body };
+  const result = { taskId: taskId, taskData: response && response.body ? response.body : body };
+  const model = trimmed(_ctx && _ctx.upstreamModel) || trimmed(_ctx && _ctx.model);
+  if (isExtended(model)) {
+    const normalized = normalizedRequestForContext(_ctx).request;
+    result.state = {
+      duration: normalized.duration || EXTENDED_CONFIG[model].maxDuration,
+      resolution: normalized.resolution,
+      video_input: hasReferenceVideo(normalized) ? "video" : "none",
+    };
+  }
+  return result;
 }
 
 export function extractUsage(ctx) {
@@ -911,7 +969,9 @@ export function extractUsage(ctx) {
   if (isExtended(resolved.upstreamModel)) {
     const duration = normalized.duration || EXTENDED_CONFIG[resolved.upstreamModel].maxDuration;
     return {
-      tokens: estimateExtendedTokens(duration),
+      tokens: estimateExtendedTokens(duration, normalized.resolution),
+      duration: duration,
+      resolution: normalized.resolution,
       video_input: hasReferenceVideo(normalized) ? "video" : "none",
     };
   }
@@ -938,10 +998,42 @@ export function extractUsageOnComplete(ctx, _result, body) {
   const facts = {};
   const status = trimmed(data && data.status).toLowerCase();
   if (isExtended(model) && ["succeeded", "success", "completed", "complete", "done"].indexOf(status) >= 0) {
+    const config = EXTENDED_CONFIG[model];
+    const state = isObject(ctx && ctx.state) ? ctx.state : {};
     const tokens = data && isObject(data.usage) ? data.usage.total_tokens : undefined;
     if (typeof tokens === "number" && Number.isSafeInteger(tokens) && tokens >= 0 && tokens <= 2147483647) {
       facts.tokens = tokens;
     }
+    const durationCandidates = [
+      data.duration,
+      data.seconds,
+      isObject(data.video) ? data.video.duration : undefined,
+      state.duration,
+    ];
+    for (const raw of durationCandidates) {
+      if (!hasValue(raw)) continue;
+      try {
+        facts.duration = integerValue(raw, "upstream video duration", 4, config.maxDuration);
+        break;
+      } catch (_error) {
+        // Keep the reserved request duration when the upstream returns an invalid value.
+      }
+    }
+    if (hasValue(data.resolution)) {
+      try {
+        facts.resolution = normalizeResolution(data.resolution, model);
+      } catch (_error) {
+        // Keep the reserved request resolution when the upstream returns an invalid value.
+      }
+    }
+    if (!facts.resolution && hasValue(state.resolution)) {
+      try {
+        facts.resolution = normalizeResolution(state.resolution, model);
+      } catch (_error) {
+        // Ignore an invalid reserved resolution from an older task state.
+      }
+    }
+    if (state.video_input === "video" || state.video_input === "none") facts.video_input = state.video_input;
   }
   if (isExtended(model)) return facts;
   const durationCandidates = [
