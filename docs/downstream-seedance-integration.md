@@ -1,100 +1,177 @@
-# 下游自研平台接入 Seedance 视频 API
+# 视频 API 接入指南
 
-本文面向下游客户，说明如何从自研平台调用视频 API。示例使用 `https://coderapi.vip`；客户实际应使用服务地址和下游 API Key。所有请求都发送到本服务。
+本服务提供统一的异步视频接口。自研平台通过 HTTP 调用即可，无需安装插件或专用 SDK。所有模型均可使用本文的统一请求格式；部分 Seedance 模型额外支持结构化 `content` 格式。
 
-客户端使用 OpenAI Videos API 兼容形式的 HTTP 接口、Bearer Token 和异步任务流程，不需要安装本仓库的 New API Task Plugin。如果客户的平台本身是 New API，并希望将本服务配置为渠道，才需要在客户自己的 New API 实例安装 `coder-video-gateway` Task Plugin。该插件是 New API 专用适配器，不是自研平台的客户端 SDK。
+## 1. 服务地址与认证
 
-## 协议范围
+API 根地址：`https://coderapi.vip`。根地址不包含 `/v1`，调用时使用下表的完整路径。
 
-- API 根地址使用你提供给客户的服务域名，例如 `https://coderapi.vip`；不要在根地址末尾重复添加 `/v1`。
-- 创建、查询、下载路径兼容 OpenAI Videos API 的路径和任务式工作流；这是你的服务提供的兼容接口，不是 OpenAI 官方服务，也不承诺支持 OpenAI API 的全部参数或所有 SDK 行为。
-- 四个扩展模型除本文的简化 JSON 格式外，也支持结构化 `content` 请求子集；请求始终发送到本服务的 `/v1/videos`。
-- 本指南只说明你的服务当前开放的四个 Seedance 模型。服务端必须已开放相应模型并为调用方密钥授权。
-- 客户只需要本服务的地址和服务方签发的 API Key。
-
-## 认证与路径
-
-所有请求都使用服务方签发给调用方的 API Key：
+所有请求均需在请求头携带服务方签发的 API Key：
 
 ```http
-Authorization: Bearer <YOUR_API_KEY>
+Authorization: Bearer YOUR_API_KEY
 ```
 
-| 用途 | 方法 | 路径 |
+| 操作 | 方法 | 路径 |
 | --- | --- | --- |
-| 创建生成任务 | `POST` | `/v1/videos` |
-| 查询任务状态 | `GET` | `/v1/videos/{video_id}` |
-| 下载生成视频 | `GET` | `/v1/videos/{video_id}/content` |
+| 查看密钥可用模型 | GET | `/v1/models` |
+| 创建视频任务 | POST | `/v1/videos` |
+| 查询视频任务 | GET | `/v1/videos/{video_id}` |
+| 下载视频 | GET | `/v1/videos/{video_id}/content` |
 
-`video_id` 使用创建响应中的 `id`。不要把服务端渠道密钥放进客户请求；客户只使用服务方发放的下游 API Key。
+创建任务使用 `Content-Type: application/json`。任务创建后保存响应中的 `id`，后续查询和下载始终使用这个 ID。API Key 请保存在平台服务端，避免放进页面公开代码或图片/视频 URL。
 
-## 本服务开放的模型
+## 2. 模型与能力
 
-| 模型 ID | 输出分辨率 | 时长 |
-| --- | --- | --- |
-| `doubao-seedance-2-0-260128` | `480p`、`720p`、`1080p`、`4k` | 4-15 秒 |
-| `doubao-seedance-2-0-fast-260128` | `480p`、`720p` | 4-15 秒 |
-| `doubao-seedance-2-0-mini-260615` | `480p`、`720p` | 4-15 秒 |
-| `doubao-seedance-2-5-260628` | `480p`、`720p`、`1080p` | 4-30 秒 |
+模型名区分大小写。`offical` 是模型 ID 的固定拼写，请原样使用。实际可调用模型还受密钥授权和服务可用性限制，可通过 `/v1/models` 查看。
 
-模型名必须与服务端开放的 ID 完全一致。当前插件不接受这些白名单之外的模型名。
+| 模型 ID | 输出分辨率 | 输出时长 | 结构化 content |
+| --- | --- | --- | --- |
+| `grok-imagine-video` | 480p、720p | 1–15 秒 | 不支持 |
+| `grok-imagine-video-1.5` | 480p、720p、1080p | 1–15 秒 | 不支持 |
+| `seedance-2.0` | 480p、720p | 5–15 秒 | 不支持 |
+| `seedance-2.5` | 480p、720p、1080p | 5–30 秒 | 不支持 |
+| `seedance-2.0-fast-offical` | 480p、720p | 4–15 秒 | 支持 |
+| `seedance-2.0-mini-offical` | 480p、720p | 4–15 秒 | 支持 |
+| `seedance-2.0-offical` | 480p、720p、1080p | 4–15 秒 | 支持 |
+| `H3` | 720p | 4–15 秒 | 不支持 |
+| `doubao-seedance-2-0-260128` | 480p、720p、1080p、4k | 4–15 秒 | 支持 |
+| `doubao-seedance-2-0-fast-260128` | 480p、720p | 4–15 秒 | 支持 |
+| `doubao-seedance-2-0-mini-260615` | 480p、720p | 4–15 秒 | 支持 |
+| `doubao-seedance-2-5-260628` | 480p、720p、1080p | 4–30 秒 | 支持 |
 
-## 创建任务
+时长使用整数秒，分辨率使用表中字符串，例如 `"720p"`，不要传 `"2K"` 或自行构造其他分辨率。
 
-建议使用 `application/json`。简化格式要求 `model`、`prompt` 和 `resolution`（或可替代分辨率的 `size`）；`duration` 可选，但建议显式传入，避免依赖模型服务的默认行为。下方另有结构化 `content` 格式。
+| 模型范围 | 参考图片 | 参考视频 | 参考音频 | 本地图片上传 |
+| --- | --- | --- | --- | --- |
+| 两个 `grok-imagine-video` 模型 | 单张 | 不支持 | 不支持 | 支持单张 multipart |
+| `seedance-2.0` | 最多 9 张 | 最多 3 条 | 最多 3 条 | 不支持 |
+| `seedance-2.5` | 最多 30 张 | 最多 10 条 | 最多 10 条 | 不支持 |
+| 三个 `seedance-2.0-…offical` 模型 | 最多 9 张 | 最多 3 条 | 最多 3 条 | 不支持 |
+| `H3` | 最多 9 张 | 不支持 | 最多 3 条 | 不支持 |
+| 四个 `doubao-seedance-…` 模型 | 支持 | 支持 | 支持 | 不支持 |
+
+上表的数量是对应模型的输入上限，不表示任意媒体组合都可同时使用。四个 `doubao-seedance-…` 模型的素材数量及素材时长限制由所选模型决定，本文不为它们约定统一数量上限。
+
+## 3. 统一请求格式
+
+所有模型均可使用以下字段名称。替换 `model` 时，应同时遵守该模型的时长、分辨率和媒体能力。
+
+### 文生视频
 
 ```sh
 curl https://coderapi.vip/v1/videos \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "doubao-seedance-2-0-260128",
-    "prompt": "A quiet lakeside at sunrise; the camera slowly moves toward the trees.",
-    "duration": 8,
+    "model": "grok-imagine-video",
+    "prompt": "一个透明玻璃瓶放在木桌上，阳光穿过玻璃，镜头缓慢推进",
+    "duration": 5,
     "resolution": "720p",
     "aspect_ratio": "16:9"
   }'
 ```
 
-典型创建响应为一个异步任务：
+### 单图生视频
 
 ```json
 {
-  "id": "task_xxxxxxxxx",
-  "object": "video",
-  "model": "doubao-seedance-2-0-260128",
-  "status": "queued",
-  "progress": 0,
-  "created_at": 1792000000
+  "model": "grok-imagine-video-1.5",
+  "prompt": "保持图片中的主体，镜头缓慢推进，背景树叶轻轻摆动",
+  "duration": 5,
+  "resolution": "720p",
+  "aspect_ratio": "16:9",
+  "input_reference": "https://media.example.com/scene.jpg"
 }
 ```
 
-字段规则：
+单图使用 `input_reference`；支持多图的模型使用 `reference_image_urls`。不要把同一张图片重复放进多个字段。
 
-| 字段 | 规则 |
+### 多图、参考视频与参考音频
+
+只对支持这些能力的模型使用相应字段：
+
+```json
+{
+  "model": "seedance-2.5",
+  "prompt": "保持参考图片中的角色外观，参考视频中的动作，按参考音频的节奏生成画面",
+  "duration": 8,
+  "resolution": "720p",
+  "aspect_ratio": "16:9",
+  "reference_image_urls": ["https://media.example.com/character.jpg"],
+  "reference_video_urls": ["https://media.example.com/motion.mp4"],
+  "reference_audio_urls": ["https://media.example.com/music.mp3"]
+}
+```
+
+`H3` 可使用图片和音频，不接受参考视频：
+
+```json
+{
+  "model": "H3",
+  "prompt": "让图片中的人物随音乐自然起舞，镜头保持平稳",
+  "duration": 5,
+  "resolution": "720p",
+  "aspect_ratio": "9:16",
+  "reference_image_urls": ["https://media.example.com/person.jpg"],
+  "reference_audio_urls": ["https://media.example.com/music.mp3"]
+}
+```
+
+### 首帧与尾帧
+
+三个 `seedance-2.0-…offical` 模型及四个 `doubao-seedance-…` 模型可使用以下形式：
+
+```json
+{
+  "model": "seedance-2.0-fast-offical",
+  "prompt": "从第一张画面自然过渡到最后一张画面，保持主体一致",
+  "duration": 5,
+  "resolution": "720p",
+  "aspect_ratio": "16:9",
+  "first_frame_image_url": "https://media.example.com/first.jpg",
+  "last_frame_image_url": "https://media.example.com/last.jpg"
+}
+```
+
+首帧、尾帧各最多一张。为获得明确的行为，请同时提供首帧和尾帧；只需要首帧时仅传 `first_frame_image_url`。首尾帧模式不要与 `input_reference`、参考图片数组、参考视频或参考音频组合使用。
+
+### 字段说明
+
+| 字段 | 类型 | 规则 |
+| --- | --- | --- |
+| `model` | string | 必填，使用已授权的模型 ID |
+| `prompt` | string | 除 Grok 单图生视频可省略外，其余模型必填非空字符串 |
+| `duration` | integer | 输出时长，建议始终显式提供，范围见模型表 |
+| `resolution` | string | 输出分辨率，建议始终显式提供，范围见模型表 |
+| `aspect_ratio` | string | 输出比例，具体取值见下表 |
+| `input_reference` | string | 单张图片 URL；也接受只包含 `url` 的对象 |
+| `reference_image_urls` | string[] | 参考图片 URL 数组 |
+| `reference_video_urls` | string[] | 参考视频 URL 数组；H3、Grok 不支持 |
+| `reference_audio_urls` | string[] | 参考音频 URL 数组；Grok 不支持 |
+| `first_frame_image_url` | string | 首帧图片 URL，只对前述支持模型使用 |
+| `last_frame_image_url` | string | 尾帧图片 URL，按上述首尾帧规则使用 |
+| `generate_audio` | boolean | 可选，是否生成音频；实际可用性取决于模型 |
+| `seed` | integer | 可选，非负安全整数；Grok 不支持 |
+| `watermark` | boolean | 可选，仅四个 `doubao-seedance-…` 模型接受 |
+
+可用比例：
+
+| 模型范围 | aspect_ratio |
 | --- | --- |
-| `model` | 必填；使用上方四个模型 ID 之一。 |
-| `prompt` | 简化格式必填；非空字符串。原生 `content` 格式则要求至少一个非空 `content[].text`。 |
-| `duration` 或 `seconds` | 可选；提供时必须是 4 到模型最大秒数之间的整数。两者同时传入时必须相同。未提供时按该模型最大时长预估预扣用量。 |
-| `resolution` | 必填；支持范围按上表所选模型确定。可用 `size` 替代。 |
-| `size` | 可替代 `resolution`。可传模型支持的分辨率名称；也可传像素尺寸：`854x480`/`480x854`、`1280x720`/`720x1280`、`1920x1080`/`1080x1920`、`3840x2160`/`2160x3840`。像素尺寸会同时选择对应的 `16:9` 或 `9:16` 比例，且仍受该模型分辨率范围限制。 |
-| `aspect_ratio` | 可选：`16:9`、`9:16`、`1:1`、`21:9`、`4:3`、`3:4`；未传时默认为 `16:9`。也可使用别名 `aspectRatio` 或 `ratio`。 |
-| `input_reference` / `image` / `image_url` | 可选单张参考图片 URL；仅 HTTPS。 |
-| `reference_image_urls` | 可选参考图片 URL 数组；也可使用别名 `images` 或 `image_urls`。 |
-| `reference_video_urls` | 可选参考视频 HTTPS URL 数组，用于参考视频生成；具体模型是否支持由模型端能力决定。 |
-| `reference_audio_urls` | 可选参考音频 HTTPS URL 数组；具体模型是否支持由模型端能力决定。 |
-| `first_frame_image_url` / `last_frame_image_url` | 可选首帧或末帧图片 HTTPS URL；不能与参考视频或其他参考图片同时使用。 |
-| `generate_audio` | 可选布尔值；是否开放取决于对应模型。 |
-| `watermark` | 可选布尔值；是否开放取决于对应模型。 |
-| `seed` | 可选整数；是否开放取决于对应模型。 |
+| 两个 Grok 模型 | `16:9`、`9:16`、`1:1`、`4:3`、`3:4`、`3:2`、`2:3` |
+| `seedance-2.0`、`seedance-2.5`、三个 `offical` 模型、H3 | `16:9`、`9:16`、`1:1`、`4:3`、`3:4` |
+| 四个 `doubao-seedance-…` 模型 | `16:9`、`9:16`、`1:1`、`4:3`、`3:4`、`21:9` |
 
-如果同时传入 `resolution` 和 `size`，它们必须描述同一个分辨率；如果 `size` 同时指定了宽高比例，也不能与 `aspect_ratio` 冲突。插件只接受明确支持的字段；不要额外发送 `n`、`metadata`、`negative_prompt`、`webhook` 等未列出的字段。
+兼容别名：`seconds` 对应 `duration`；`ratio`、`aspectRatio` 对应 `aspect_ratio`；`image`、`image_url` 对应 `input_reference`；`images`、`image_urls` 对应 `reference_image_urls`。同一语义的多个别名同时传入时必须相同，否则报错。建议新接入只使用表中的规范名称，尺寸使用 `resolution` 和 `aspect_ratio` 分别指定，不依赖历史 `size` 字段。
 
-`duration` 虽不是当前接口的强制字段，但建议始终提供。未提供时，服务不会替请求补时长，预估计量按该模型的最大时长计算；模型服务可能使用自己的默认值，也可能要求显式时长。若成功任务返回实际用量，最终计量使用该实际用量。
+不要发送未列出的任意参数。`duration: -1`、`ratio: "adaptive"`、回调、草稿及其他未声明的功能均不属于本文接口范围。一个任务生成一个视频，建议不要传批量数量 `n`。
 
-## 结构化 content 请求
+缺省行为仅用于兼容，建议客户端不要依赖：Grok 必须传时长；`seedance-2.0` 与 `seedance-2.5` 缺省时长为 5 秒；三个 `offical` 模型与 H3 为 4 秒。四个 `doubao-seedance-…` 模型省略时长时由模型确定，费用预估会按模型最大时长预留，成功后使用有效实际用量结算；省略时长不表示请求指定了最大时长。分辨率缺省时 Grok 使用 480p，六个非 `doubao-` 的 Seedance/H3 模型使用 720p；四个 `doubao-` 模型必须指定分辨率。
 
-四个扩展模型还接受 `content` 数组结构。请求仍发到本服务 `POST /v1/videos`，模型名使用本服务开放的 ID：
+## 4. Seedance 结构化 content 格式
+
+模型表标记“支持”的七个 Seedance 模型可使用这一格式，仍调用 `POST /v1/videos`。这是额外的请求体格式，创建、查询和下载路径均不改变。
 
 ```sh
 curl https://coderapi.vip/v1/videos \
@@ -103,8 +180,8 @@ curl https://coderapi.vip/v1/videos \
   -d '{
     "model": "doubao-seedance-2-5-260628",
     "content": [
-      {"type": "text", "text": "参考图片主体和视频动作，生成平滑的镜头运动"},
-      {"type": "image_url", "image_url": {"url": "https://images.example.com/scene.png"}, "role": "reference_image"},
+      {"type": "text", "text": "保持参考图片的主体外观，参考视频动作与音频节奏，镜头平稳移动"},
+      {"type": "image_url", "image_url": {"url": "https://media.example.com/scene.jpg"}, "role": "reference_image"},
       {"type": "video_url", "video_url": {"url": "https://media.example.com/motion.mp4"}, "role": "reference_video"},
       {"type": "audio_url", "audio_url": {"url": "https://media.example.com/music.mp3"}, "role": "reference_audio"}
     ],
@@ -117,110 +194,121 @@ curl https://coderapi.vip/v1/videos \
   }'
 ```
 
-支持的字段如下：
-
-| 字段 | 规则 |
-| --- | --- |
-| `model` | 必填；使用上方四个扩展模型 ID。 |
-| `content` | 必填非空数组，且至少包含一个非空 `text` 项。 |
-| `content[].type=text` | 项目结构为 `{"type":"text","text":"..."}`。 |
-| `content[].type=image_url` | 使用 `image_url.url` 和 `role`；role 为 `reference_image`、`first_frame` 或 `last_frame`。 |
-| `content[].type=video_url` | 使用 `video_url.url`，role 固定为 `reference_video`。 |
-| `content[].type=audio_url` | 使用 `audio_url.url`，role 固定为 `reference_audio`。 |
-| `duration` | 可选整数；Seedance 2.0 系列为 4–15 秒，Seedance 2.5 为 4–30 秒。 |
-| `resolution` | 必填；可用范围按上方模型表确定。 |
-| `ratio` | 可选：`16:9`、`9:16`、`1:1`、`21:9`、`4:3`、`3:4`；默认 `16:9`。 |
-| `generate_audio`、`watermark` | 可选布尔值。 |
-| `seed` | 可选整数。 |
-
-各媒体项必须使用可公开访问的 HTTPS 地址；本地文件和资源 ID 均不支持。首尾帧最多各一张，首尾帧模式不能与参考图片或参考视频混合。`content` 格式不能和简化格式的 `prompt`、`input_reference`、`reference_video_urls` 等字段混用。
-
-该结构仅支持本服务列出的字段，不会透传未列出的参数。`ratio: "adaptive"`、`duration: -1`、`output_format`、`priority`、回调和草稿等字段会被拒绝；四个模型的分辨率分别按上方模型表校验。其他模型继续使用上面的简化请求格式。
-
-## 图生视频
-
-图生视频请求需要让生成服务读取参考图片，因此传 HTTPS 图片地址，而不是客户端本地文件路径或二进制文件。若原图在客户设备上，客户平台应先将它上传到自己控制、生成服务可访问的图床，再把 URL 放进请求：
+三个 `offical` 模型同样可以使用 `content`，但不要传 `watermark`：
 
 ```json
 {
-  "model": "doubao-seedance-2-0-260128",
-  "prompt": "Animate the scene with a gentle camera pan.",
-  "duration": 8,
+  "model": "seedance-2.0-offical",
+  "content": [
+    {"type": "text", "text": "保持角色外观，镜头从左向右缓慢移动"},
+    {"type": "image_url", "image_url": {"url": "https://media.example.com/character.jpg"}, "role": "reference_image"}
+  ],
+  "duration": 5,
   "resolution": "720p",
-  "input_reference": "https://images.example.com/scene.jpg"
+  "ratio": "16:9",
+  "generate_audio": true,
+  "seed": 42
 }
 ```
 
-单张图片可使用 `input_reference`、`image` 或 `image_url`，值为 HTTPS URL；`input_reference` 也可写为 `{"url":"https://..."}`。多张图可使用 `reference_image_urls`、`images` 或 `image_urls` 数组。第一帧/末帧可分别使用 `first_frame_image_url` 和 `last_frame_image_url`。
+| content 项目 | 结构与 role |
+| --- | --- |
+| 文本 | `{"type":"text","text":"非空提示词"}` |
+| 参考图 | `type: "image_url"`，地址放 `image_url.url`，role 为 `reference_image` |
+| 首帧 | 图片项 role 为 `first_frame` |
+| 尾帧 | 图片项 role 为 `last_frame` |
+| 参考视频 | `type: "video_url"`，地址放 `video_url.url`，role 为 `reference_video` |
+| 参考音频 | `type: "audio_url"`，地址放 `audio_url.url`，role 为 `reference_audio` |
 
-本服务目前不接受这四个模型的本地 multipart 图片文件上传或资源 ID。图片链接应在提交任务后仍有效，并允许生成服务读取；需要登录 Cookie、浏览器 Referer 或客户端私有网络才能访问的 URL 通常不能作为图片输入。
+请明确填写媒体 role。单任务仍受模型能力、素材数量和组合限制；`content` 不会让原本不支持参考视频的模型获得该能力。
 
-若使用结构化格式，请将图片项写入 `content`，并按场景选择 `reference_image`、`first_frame` 或 `last_frame` 角色。此结构只用于上方列出的四个模型。
+使用 `content` 时必须遵守：
 
-可选的 `reference_video_urls` 和 `reference_audio_urls` 接受 HTTPS URL 数组。它们是否能用于具体模型，仍受模型能力和服务端配置约束。四个扩展模型也可以通过 `content` 中的 `video_url` / `audio_url` 输入。第一帧/末帧模式不能与参考视频或其他参考图片混用。
+- 提示词放入 `content` 的 `text` 项，不再传顶层 `prompt`。即使顶层 `prompt` 是空字符串或 null，也会被视为混用而拒绝。
+- 图片、视频、音频全部放入 `content`，不再传顶层 `input_reference` 或各类 `reference_*_urls`。
+- `content` 必须是非空数组，并包含有效非空文本。不要使用不存在 `text` 的文本项。
+- 时长、分辨率、比例等控制参数仍在顶层，使用 `duration`、`resolution`、`ratio`。
+- 四个 `doubao-seedance-…` 模型可额外传 `generate_audio`、`watermark`、`seed`；三个 `offical` 模型可传 `generate_audio`、`seed`。
+- 首帧、尾帧仍分别最多一张，遵循前面的首尾帧组合要求。
 
-## 参考视频生成
+这两种格式应二选一。已经使用顶层 `prompt` 的客户端可以继续采用统一格式，不必改用 `content`。
 
-需要让模型参考一段视频时，在 `reference_video_urls` 数组中传入可由生成服务访问的 HTTPS 视频地址。不要传本地路径或 multipart 文件。当前服务会把该请求标记为含参考视频（定价事实 `video_input` 为 `video`）；不含参考视频时为 `none`。视频输入能力仍以对应模型和渠道实际支持情况为准。
+## 5. 图片与媒体地址
+
+建议全部使用公开可访问的 HTTPS URL。图生视频、参考视频和参考音频的素材地址必须在任务处理期间持续有效，并允许生成服务直接读取。
+
+除两个 Grok 模型外，图片、视频和音频均使用 URL，不接受客户端本地路径、二进制文件、Base64 图片或需要登录后才能访问的地址。客户端本地素材请先上传到自己控制的媒体存储，再提交 URL。本文的 `media.example.com` 是示例地址，必须替换为实际可读的素材地址。
+
+两个 Grok 模型还支持单张图片 multipart 上传，其他字段仍使用统一名称：
 
 ```sh
 curl https://coderapi.vip/v1/videos \
   -H "Authorization: Bearer $API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "doubao-seedance-2-0-260128",
-    "prompt": "Continue the motion and keep the camera movement smooth.",
-    "duration": 8,
-    "resolution": "720p",
-    "reference_video_urls": [
-      "https://media.example.com/reference.mp4"
-    ]
-  }'
+  -F "model=grok-imagine-video" \
+  -F "prompt=让图片中的云缓慢移动" \
+  -F "duration=5" \
+  -F "resolution=720p" \
+  -F "input_reference=@/absolute/path/scene.png"
 ```
 
-参考视频 URL 应在任务处理期间保持有效，并允许生成服务直接访问。若是私有素材，先将其放到你控制的、生成服务可以访问的 HTTPS 存储，再传入该 URL。若模型不支持参考视频，服务会返回参数或能力错误。
+multipart 请求由客户端自动生成 `Content-Type` 边界，不要手工固定为 `application/json`。一次请求只上传一张图片，不同时提供 URL 图片和上传文件。
 
-## 查询与下载
+## 6. 创建响应、轮询与下载
 
-创建成功后，使用返回的 `id` 轮询任务：
+典型创建响应：
+
+```json
+{
+  "id": "task_example",
+  "object": "video",
+  "model": "grok-imagine-video",
+  "status": "queued",
+  "progress": 0,
+  "created_at": 1792000000
+}
+```
+
+保存 `id`，使用相同 API Key 查询：
 
 ```sh
 curl "https://coderapi.vip/v1/videos/$VIDEO_ID" \
   -H "Authorization: Bearer $API_KEY"
 ```
 
-常见 `status` 值：
+| status | 含义 | 客户端行为 |
+| --- | --- | --- |
+| `queued` | 排队中 | 继续轮询 |
+| `in_progress` | 生成中 | 继续轮询，按 progress 展示进度 |
+| `completed` | 已完成 | 下载视频 |
+| `failed` | 失败 | 展示 error.message，停止轮询 |
+| `unknown` | 暂时无法识别状态 | 延后重查；持续出现时联系服务方 |
 
-- `queued`：任务排队中。
-- `in_progress`：生成中；`progress` 是当前进度百分比。
-- `completed`：已完成，可下载视频。
-- `failed`：任务失败；检查响应中的 `error.code` 和 `error.message`。
-- `unknown`：服务端暂时无法映射任务状态；重新查询或联系服务方排查。
+建议每 5–10 秒查询一次，不要因暂时排队或客户端超时重复创建相同任务。客户端停止等待不会自动取消任务；重新连接后继续查询已保存的 ID。
 
-状态查询响应会保留本服务任务 ID，不会把内部任务 ID 或媒体存储地址交给客户端。完成后通过本服务下载：
+成功后下载 MP4：
 
 ```sh
-curl "https://coderapi.vip/v1/videos/$VIDEO_ID/content" \
+curl --fail "https://coderapi.vip/v1/videos/$VIDEO_ID/content" \
   -H "Authorization: Bearer $API_KEY" \
-  --output generated.mp4
+  --output result.mp4
 ```
 
-内容接口返回视频文件流，通常为 `video/mp4`。应保存流式响应，不要把它当作 JSON 解析。任务未完成、任务不存在或调用方无权访问时，接口返回 HTTP 错误；客户端应检查 HTTP 状态码，再读取 JSON 错误信息。
+查询响应可能包含 `content_url`；也可以直接按上述任务 ID 构造下载路径。下载接口返回视频二进制，不是 JSON。尚未完成时不要调用下载；任务与视频可获取期限由服务保存策略决定，建议完成后及时保存到自己的存储。
 
-成功任务可能包含：
+## 7. 错误处理与接入检查
+
+非成功 HTTP 响应应先读取 JSON 错误信息。任务生成失败还需检查查询响应中的 `error.message`。错误示例：
 
 ```json
 {
-  "usage": {
-    "total_tokens": 129600
+  "error": {
+    "code": "",
+    "message": "请求参数错误或所选模型暂不可用，具体原因以实际响应为准",
+    "type": "new_api_error"
   }
 }
 ```
 
-`usage` 是可选字段；只有在服务端已部署用量输出支持、且服务端收到并保存了有效的成功用量时才会出现。客户端不能依赖它作为任务成功的必要条件。
+不要仅依赖固定 `error.code` 判断所有失败；不同阶段的错误 code 可能为空。记录响应中的 request id（若提供），提交给服务方排查。认证、参数或模型授权错误应修正后再提交；创建响应不确定时先核对已有任务，避免自动重复提交造成额外生成。
 
-## 自研平台实现建议
-
-下游自研平台只需实现三项 HTTP 操作：向本服务创建任务、按 `id` 查询任务、从本服务下载完成的视频。使用普通 HTTPS 客户端即可，不需要调用其他模型 API，也不需要接入 New API 插件 SDK。视频任务是异步的，平台应保存 `id` 并在后台轮询；不要在用户浏览器中暴露长期 API Key。图生视频则在调用前将本地文件上传至可供生成服务访问的 HTTPS 图床。
-
-若使用官方 OpenAI SDK，请先确认该 SDK 版本仍保留 Videos API 方法，以及其请求字段与本指南列出的接口参数兼容。由于本接口仅承诺上面列出的兼容子集，使用原始 HTTP 请求通常更直接。
+接入时依次确认：密钥有效且有模型权限；模型 ID 完全匹配；时长、分辨率、比例在该模型范围内；素材 URL 可读取；请求只选择统一格式或 `content` 格式之一；最后完成一次创建、查询到完成、下载视频的完整流程。

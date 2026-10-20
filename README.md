@@ -31,11 +31,11 @@
 | --- | --- | --- |
 | `grok-imagine-video` | 480p、720p | 1–15 秒 |
 | `grok-imagine-video-1.5` | 480p、720p、1080p | 1–15 秒 |
-| `seedance-2.0` | 480p、720p | 1–3600 秒 |
-| `seedance-2.5` | 480p、720p、1080p | 1–3600 秒 |
-| `seedance-2.0-fast-offical` | 480p、720p | 1–3600 秒 |
-| `seedance-2.0-mini-offical` | 480p、720p | 1–3600 秒 |
-| `seedance-2.0-offical` | 480p、720p、1080p | 1–3600 秒 |
+| `seedance-2.0` | 480p、720p | 5–15 秒 |
+| `seedance-2.5` | 480p、720p、1080p | 5–30 秒 |
+| `seedance-2.0-fast-offical` | 480p、720p | 4–15 秒 |
+| `seedance-2.0-mini-offical` | 480p、720p | 4–15 秒 |
+| `seedance-2.0-offical` | 480p、720p、1080p | 4–15 秒 |
 | `H3` | 720p | 4–15 秒；最多 9 张图片、3 条音频 |
 | `doubao-seedance-2-0-260128` | 480p、720p、1080p、4K | 4–15 秒 |
 | `doubao-seedance-2-0-fast-260128` | 480p、720p | 4–15 秒 |
@@ -46,7 +46,7 @@ New API 渠道支持将模型 ID 映射为客户侧别名；映射规则由服�
 
 ## New API 配置
 
-1. 在根管理员的任务插件页面上传 `plugin.js`，启用 `coder-video-gateway@1.0.4`。
+1. 在根管理员的任务插件页面上传 `plugin.js`，启用 `coder-video-gateway@1.0.5`。
 2. 新建渠道，渠道类型选择 **Task Plugin**，不要选择 OpenAI 类型。
 3. 任务插件选择 `coder-video-gateway`。
 4. Base URL 填写网关地址，例如 `https://coderapi.vip`。
@@ -63,7 +63,9 @@ New API 渠道支持将模型 ID 映射为客户侧别名；映射规则由服�
 
 `seedance-2.0`、`seedance-2.5`、三个 `seedance-2.0-...` 模型及 `H3` 使用可公开访问的 HTTP(S) 图片 URL，不接受本地 multipart 图片。四个 `doubao-seedance-...` 模型接受 HTTPS 图片 URL，也不接受本地 multipart 图片。需要让服务读取的素材应使用可访问的 HTTPS 地址，并放入 `input_reference`、`image` 或 `image_url`。
 
-四个 `doubao-seedance-...` 模型还接受结构化 JSON `content` 数组，请求仍发送到标准 `POST /v1/videos`。此格式支持 `text`、`image_url`、`video_url`、`audio_url` 内容项，以及 `duration`、`resolution`、`ratio`、`generate_audio`、`watermark`、`seed`。可用分辨率因模型而异，见上表；宽高比限于 `16:9`、`9:16`、`1:1`、`21:9`、`4:3`、`3:4`；不支持 `adaptive`、`duration: -1` 及未列出的字段。详细格式见下游接入文档。
+全部模型共用 `model`、`prompt`、`duration`、`resolution`、`aspect_ratio` 和单图 `input_reference` 等规范字段；别名相同则归一，冲突则拒绝。多图、参考视频和参考音频按逐模型能力校验，不把不支持的参数静默丢弃。
+
+三个 `offical` 模型和四个 `doubao-seedance-...` 模型还接受结构化 JSON `content`，包含 `text`、`image_url`、`video_url`、`audio_url`。使用该格式时文本和媒体全部放进 `content`，不与顶层 `prompt` 或参考媒体字段混用；控制参数仍放顶层。三个 `offical` 模型为 4–15 秒、最多 9 图/3 视频/3 音频、五种固定比例；四个 `doubao-seedance-...` 模型按各自时长、分辨率和比例校验。`watermark` 仅四个 `doubao-` 模型接受。详细支持范围、默认值和完整示例见下游指南。
 
 ## 计量与价格
 
@@ -89,7 +91,7 @@ new-api plugin test /opt/qlh-main/new-api-video-gateway-plugin/plugin.js --fixtu
 
 ## 客户调用示例
 
-下游客户自研平台接入说明（通过本服务调用 Seedance 视频模型）见 [`docs/downstream-seedance-integration.md`](docs/downstream-seedance-integration.md)。
+覆盖全部视频模型的自研平台接入说明见 [`docs/downstream-seedance-integration.md`](docs/downstream-seedance-integration.md)。该文件可独立发给客户；原路径保留以兼容已有链接。
 
 ```sh
 curl https://你的-new-api.example/v1/videos \

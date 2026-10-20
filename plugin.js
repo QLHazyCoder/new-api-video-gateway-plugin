@@ -2,7 +2,6 @@ const MULTIPART_CLASSIC = "grok-imagine-video";
 const MULTIPART_15 = "grok-imagine-video-1.5";
 const MULTIPART_MODELS = [MULTIPART_CLASSIC, MULTIPART_15];
 const H3_MODEL = "H3";
-const H3_ASPECT_RATIOS = ["9:16", "16:9", "4:3", "3:4", "1:1"];
 const EXTENDED_CONFIG = {
   "doubao-seedance-2-0-260128": { maxDuration: 15, resolutions: ["480p", "720p", "1080p", "4k"] },
   "doubao-seedance-2-0-fast-260128": { maxDuration: 15, resolutions: ["480p", "720p"] },
@@ -32,22 +31,26 @@ const EXTENDED_SIZE_OPTIONS = {
   "2160x3840": { resolution: "4k", ratio: "9:16" },
 };
 
-const URL_INPUT_MODELS = [
-  "seedance-2.0",
-  "seedance-2.5",
-  "seedance-2.0-fast-offical",
-  "seedance-2.0-mini-offical",
-  "seedance-2.0-offical",
-  H3_MODEL,
-];
+const URL_INPUT_CONFIG = {
+  "seedance-2.0": { minDuration: 5, maxDuration: 15, defaultDuration: 5, resolutions: ["480p", "720p"], maxImages: 9, maxVideos: 3, maxAudios: 3 },
+  "seedance-2.5": { minDuration: 5, maxDuration: 30, defaultDuration: 5, resolutions: ["480p", "720p", "1080p"], maxImages: 30, maxVideos: 10, maxAudios: 10 },
+  "seedance-2.0-fast-offical": { minDuration: 4, maxDuration: 15, defaultDuration: 4, resolutions: ["480p", "720p"], maxImages: 9, maxVideos: 3, maxAudios: 3 },
+  "seedance-2.0-mini-offical": { minDuration: 4, maxDuration: 15, defaultDuration: 4, resolutions: ["480p", "720p"], maxImages: 9, maxVideos: 3, maxAudios: 3 },
+  "seedance-2.0-offical": { minDuration: 4, maxDuration: 15, defaultDuration: 4, resolutions: ["480p", "720p", "1080p"], maxImages: 9, maxVideos: 3, maxAudios: 3 },
+  H3: { minDuration: 4, maxDuration: 15, defaultDuration: 4, resolutions: ["720p"], maxImages: 9, maxVideos: 0, maxAudios: 3 },
+};
+const URL_INPUT_MODELS = Object.keys(URL_INPUT_CONFIG);
+const URL_INPUT_720_ONLY_MODELS = URL_INPUT_MODELS.filter(function (model) { return model !== H3_MODEL && URL_INPUT_CONFIG[model].resolutions.length === 2; });
+const URL_INPUT_1080_MODELS = URL_INPUT_MODELS.filter(function (model) { return URL_INPUT_CONFIG[model].resolutions.indexOf("1080p") >= 0; });
+const URL_INPUT_RESOLUTIONS = URL_INPUT_CONFIG["seedance-2.5"].resolutions;
+const URL_CONTENT_MODELS = ["seedance-2.0-fast-offical", "seedance-2.0-mini-offical", "seedance-2.0-offical"];
+const URL_ASPECT_RATIOS = ["9:16", "16:9", "1:1", "3:4", "4:3"];
+const URL_CONTENT_FIELDS = { model: true, content: true, duration: true, resolution: true, ratio: true, generate_audio: true, return_last_frame: true, seed: true, output_format: true };
 
 const VIDEO_MODELS = MULTIPART_MODELS.concat(URL_INPUT_MODELS, EXTENDED_MODELS);
 const MULTIPART_CLASSIC_RESOLUTIONS = ["480p", "720p"];
 const MULTIPART_15_RESOLUTIONS = ["480p", "720p", "1080p"];
 const MULTIPART_RESOLUTIONS = MULTIPART_15_RESOLUTIONS;
-const URL_INPUT_RESOLUTIONS = ["480p", "720p", "1080p"];
-const URL_INPUT_1080_MODELS = ["seedance-2.5", "seedance-2.0-offical"];
-const URL_INPUT_720_ONLY_MODELS = ["seedance-2.0", "seedance-2.0-fast-offical", "seedance-2.0-mini-offical"];
 const ASPECT_RATIOS = ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"];
 const SIZE_TO_ASPECT_RATIO = {
   "1024x1024": "1:1",
@@ -84,6 +87,7 @@ const SUPPORTED_FIELDS = {
   negative_prompt: true,
   generate_audio: true,
   return_last_frame: true,
+  output_format: true,
   seed: true,
   n: true,
   bypass_face_check: true,
@@ -240,7 +244,7 @@ export const meta = {
     en: "Video generation through a standard OpenAI-compatible interface",
     zh: "通过标准 OpenAI 兼容接口提供视频生成服务",
   },
-  version: "1.0.4",
+  version: "1.0.5",
   author: { name: "QLHazyCoder" },
   website: "https://coderapi.vip",
   baseUrl: "https://coderapi.vip",
@@ -268,7 +272,7 @@ export const meta = {
       models: URL_INPUT_720_ONLY_MODELS,
       schema: usageSchema(["480p", "720p"], true),
       examples: [
-        { label: "720p 4s", facts: { duration: 4, resolution: "720p", image_count: 0, has_video: "false" } },
+        { label: "720p 5s", facts: { duration: 5, resolution: "720p", image_count: 0, has_video: "false" } },
         { label: "720p 8s · reference video", facts: { duration: 8, resolution: "720p", image_count: 0, has_video: "true" } },
       ],
     },
@@ -276,7 +280,7 @@ export const meta = {
       models: URL_INPUT_1080_MODELS,
       schema: usageSchema(URL_INPUT_RESOLUTIONS, true),
       examples: [
-        { label: "720p 4s", facts: { duration: 4, resolution: "720p", image_count: 0, has_video: "false" } },
+        { label: "720p 5s", facts: { duration: 5, resolution: "720p", image_count: 0, has_video: "false" } },
         { label: "1080p 8s · reference video", facts: { duration: 8, resolution: "1080p", image_count: 0, has_video: "true" } },
       ],
     },
@@ -365,12 +369,16 @@ function integerValue(value, field, min, max) {
 
 function durationFor(request, model) {
   const values = [];
-  const minimum = model === H3_MODEL || isExtended(model) ? 4 : 1;
-  const maximum = supportsMultipartInput(model) || model === H3_MODEL ? 15 : isExtended(model) ? EXTENDED_CONFIG[model].maxDuration : 3600;
+  const config = URL_INPUT_CONFIG[model];
+  const minimum = config ? config.minDuration : isExtended(model) ? 4 : 1;
+  const maximum = config ? config.maxDuration : isExtended(model) ? EXTENDED_CONFIG[model].maxDuration : 15;
   if (hasValue(request.seconds)) values.push(integerValue(request.seconds, "seconds", minimum, maximum));
   if (hasValue(request.duration)) values.push(integerValue(request.duration, "duration", minimum, maximum));
   if (values.length > 1 && values[0] !== values[1]) throw new Error("seconds and duration must match when both are provided");
-  if (!values.length) throw new Error("seconds or duration is required for video generation");
+  if (!values.length) {
+    if (config) return config.defaultDuration;
+    throw new Error("seconds or duration is required for video generation");
+  }
   return values[0];
 }
 
@@ -381,9 +389,7 @@ function normalizeResolution(value, model) {
     ? model === MULTIPART_CLASSIC
       ? ["480p", "720p"]
       : MULTIPART_RESOLUTIONS
-    : URL_INPUT_720_ONLY_MODELS.indexOf(model) >= 0
-      ? ["480p", "720p"]
-      : URL_INPUT_RESOLUTIONS;
+    : URL_INPUT_CONFIG[model].resolutions;
   if (allowed.indexOf(resolution) < 0) throw new Error("resolution is not supported by " + model + "; use " + allowed.join(", "));
   return resolution;
 }
@@ -497,7 +503,9 @@ function imageFromRequest(request, model, uploadedFile) {
       throw new Error("provide at most one image or input_reference");
     }
   }
-  if (candidates.length > 1) throw new Error("provide at most one image or input_reference");
+  if (candidates.length > 1 && candidates.some(function (value) { return JSON.stringify(value) !== JSON.stringify(candidates[0]); })) {
+    throw new Error("image, input_reference, and image_url must describe the same input reference");
+  }
   return candidates.length ? candidates[0] : null;
 }
 
@@ -571,6 +579,7 @@ function normalizeMultipartVideoRequest(request, model, uploadedFile) {
     "last_frame_image_url",
     "negative_prompt",
     "return_last_frame",
+    "output_format",
     "bypass_face_check",
     "seed",
     "n",
@@ -613,8 +622,8 @@ function normalizeUrlInputRequest(request, model, uploadedFile) {
     return stringValue(value, field);
   });
   if (aspectRatio !== undefined) {
-    if (model === H3_MODEL && H3_ASPECT_RATIOS.indexOf(aspectRatio) < 0) {
-      throw new Error("aspect_ratio must be one of " + H3_ASPECT_RATIOS.join(", ") + " for H3");
+    if (URL_ASPECT_RATIOS.indexOf(aspectRatio) < 0) {
+      throw new Error("aspect_ratio must be one of " + URL_ASPECT_RATIOS.join(", ") + " for " + model);
     }
     normalized.aspect_ratio = aspectRatio;
   }
@@ -626,8 +635,6 @@ function normalizeUrlInputRequest(request, model, uploadedFile) {
   for (const field of ["reference_video_urls", "reference_audio_urls"]) {
     if (hasOwn(request, field) && hasValue(request[field])) normalized[field] = publicURLArray(request[field], field);
   }
-  if (model === H3_MODEL && imageCount(normalized) > 9) throw new Error("H3 accepts at most 9 reference images");
-  if (model === H3_MODEL && audioCount(normalized) > 3) throw new Error("H3 accepts at most 3 reference audio URLs");
   for (const field of ["size", "negative_prompt", "first_frame_image_url", "last_frame_image_url"]) {
     const value = optionalString(request, field);
     if (value !== undefined) normalized[field] = field.endsWith("_url") ? publicURL(value, field) : value;
@@ -636,6 +643,9 @@ function normalizeUrlInputRequest(request, model, uploadedFile) {
     if (hasOwn(request, field)) normalized[field] = booleanValue(request[field], field);
   }
   if (hasOwn(request, "seed")) normalized.seed = integerValue(request.seed, "seed", 0);
+  if (hasOwn(request, "output_format")) {
+    if (stringValue(request.output_format, "output_format").toLowerCase() !== "mp4") throw new Error("output_format must be mp4");
+  }
   if (hasOwn(request, "n")) normalized.n = integerValue(request.n, "n", 1, model === H3_MODEL ? 1 : 16);
   if (hasOwn(request, "grid_strength")) {
     if (typeof request.grid_strength !== "number" && typeof request.grid_strength !== "string") {
@@ -646,7 +656,79 @@ function normalizeUrlInputRequest(request, model, uploadedFile) {
     normalized.grid_strength = strength;
   }
   if (hasOwn(request, "strength")) normalized.strength = integerValue(request.strength, "strength", 1, 10);
+  const config = URL_INPUT_CONFIG[model];
+  if (imageCount(normalized) > config.maxImages) throw new Error(model + " accepts at most " + config.maxImages + " input images");
+  if ((normalized.reference_video_urls || []).length > config.maxVideos) throw new Error(model + " accepts at most " + config.maxVideos + " reference videos");
+  if (audioCount(normalized) > config.maxAudios) throw new Error(model + " accepts at most " + config.maxAudios + " reference audio URLs");
+  if (URL_CONTENT_MODELS.indexOf(model) >= 0) {
+    const hasFrames = !!(normalized.first_frame_image_url || normalized.last_frame_image_url);
+    if (normalized.last_frame_image_url && !normalized.first_frame_image_url) throw new Error("last_frame_image_url requires first_frame_image_url");
+    if (hasFrames && (normalized.input_reference || (normalized.reference_image_urls || []).length || hasReferenceVideo(normalized) || audioCount(normalized))) {
+      throw new Error("first/last-frame input cannot be mixed with reference images, videos, or audio");
+    }
+    if (audioCount(normalized) > 0 && !hasReferenceVideo(normalized) && !imageCount(normalized)) {
+      throw new Error("this model does not accept audio-only input; include a reference image or video");
+    }
+  }
   return normalized;
+}
+
+function normalizeOfficialContent(value) {
+  if (!Array.isArray(value) || value.length === 0) throw new Error("content must be a non-empty array");
+  const textParts = [];
+  const images = [];
+  const videos = [];
+  const audios = [];
+  for (let index = 0; index < value.length; index += 1) {
+    const item = assertObject(value[index], "content[" + index + "] must be an object");
+    const field = "content[" + index + "]";
+    const type = stringValue(item.type, field + ".type");
+    if (type === "text") {
+      assertExactKeys(item, { type: true, text: true }, field);
+      textParts.push(stringValue(item.text, field + ".text"));
+      continue;
+    }
+    const roleOptions = { image_url: ["reference_image", "first_frame", "last_frame"], video_url: ["reference_video"], audio_url: ["reference_audio"] };
+    const roles = hasOwn(roleOptions, type) ? roleOptions[type] : null;
+    if (!roles) throw new Error("unsupported content type: " + type);
+    const allowed = { type: true, role: true };
+    allowed[type] = true;
+    assertExactKeys(item, allowed, field);
+    const address = assertObject(item[type], field + "." + type + " must be an object");
+    assertExactKeys(address, { url: true }, field + "." + type);
+    const url = publicURL(address.url, field + "." + type + ".url");
+    const role = hasOwn(item, "role") ? stringValue(item.role, field + ".role") : "";
+    if (role && roles.indexOf(role) < 0) throw new Error(field + ".role must be one of " + roles.join(", "));
+    if (type === "image_url") images.push({ url: url, role: role });
+    else (type === "video_url" ? videos : audios).push(url);
+  }
+  const hasFrameRole = images.some(function (image) { return image.role === "first_frame" || image.role === "last_frame"; });
+  for (const image of images) {
+    if (image.role) continue;
+    if (images.length === 1) image.role = "first_frame";
+    else {
+      if (hasFrameRole) throw new Error("content[].role must be provided for every image when using first/last-frame input");
+      image.role = "reference_image";
+    }
+  }
+  const result = {};
+  if (textParts.length) result.prompt = textParts.join("\n").trim();
+  const first = images.filter(function (image) { return image.role === "first_frame"; });
+  const last = images.filter(function (image) { return image.role === "last_frame"; });
+  const references = images.filter(function (image) { return image.role === "reference_image"; });
+  if (first.length > 1 || last.length > 1) throw new Error("content accepts at most one first_frame and one last_frame image");
+  if (first.length || last.length) {
+    if (last.length && !first.length) throw new Error("last_frame requires a first_frame image");
+    if (references.length || videos.length || audios.length) throw new Error("first/last-frame input cannot be mixed with reference images, videos, or audio");
+    if (first.length) result.first_frame_image_url = first[0].url;
+    if (last.length) result.last_frame_image_url = last[0].url;
+  } else {
+    if (references.length) result.reference_image_urls = references.map(function (image) { return image.url; });
+    if (videos.length) result.reference_video_urls = videos;
+    if (audios.length) result.reference_audio_urls = audios;
+    if (audios.length && !references.length && !videos.length) throw new Error("this model does not accept audio-only content; include a reference image or video");
+  }
+  return result;
 }
 
 function validatedMediaURL(value, field) {
@@ -689,11 +771,12 @@ function normalizeExtendedContent(value) {
       return { type: "text", text: stringValue(item.text, field + ".text") };
     }
 
-    const media = {
+    const mediaTypes = {
       image_url: { field: "image_url", roles: ["reference_image", "first_frame", "last_frame"] },
       video_url: { field: "video_url", roles: ["reference_video"] },
       audio_url: { field: "audio_url", roles: ["reference_audio"] },
-    }[type];
+    };
+    const media = hasOwn(mediaTypes, type) ? mediaTypes[type] : null;
     if (!media) throw new Error(field + ".type must be text, image_url, video_url, or audio_url");
     const allowed = { type: true, role: true };
     allowed[media.field] = true;
@@ -836,6 +919,15 @@ function normalizeExtendedRequest(request, model, uploadedFile) {
 function normalizeVideoRequest(request, model, uploadedFile) {
   const input = assertObject(request, "request body must be an object");
   if (hasOwn(input, "content")) {
+    for (const field of ["prompt", "input_reference", "image", "image_url", "reference_image_urls", "images", "image_urls", "reference_video_urls", "reference_audio_urls", "first_frame_image_url", "last_frame_image_url"]) {
+      if (hasOwn(input, field)) throw new Error("content cannot be combined with top-level prompt or reference fields; put text and media in content or use the unified format");
+    }
+    if (URL_CONTENT_MODELS.indexOf(model) >= 0) {
+      assertExactKeys(input, URL_CONTENT_FIELDS, "request");
+      const translated = Object.assign({}, input, normalizeOfficialContent(input.content));
+      delete translated.content;
+      return normalizeUrlInputRequest(translated, model, uploadedFile);
+    }
     if (!isExtended(model)) throw new Error("structured content format is only supported for configured models");
     return normalizeExtendedNativeRequest(input, model, uploadedFile);
   }
@@ -1044,7 +1136,8 @@ export function extractUsageOnComplete(ctx, _result, body) {
   for (const raw of durationCandidates) {
     if (!hasValue(raw)) continue;
     try {
-      facts.duration = integerValue(raw, "upstream video duration", model === H3_MODEL ? 4 : 1, supportsMultipartInput(model) || model === H3_MODEL ? 15 : 3600);
+      const config = URL_INPUT_CONFIG[model];
+      facts.duration = integerValue(raw, "upstream video duration", config ? config.minDuration : 1, config ? config.maxDuration : 15);
       break;
     } catch (_error) {
       // An invalid task fact must not replace the reserved request fact.

@@ -37,11 +37,11 @@ New API openai_video 主机协议
 | --- | --- | --- |
 | `grok-imagine-video` | 480p、720p | 1–15 秒 |
 | `grok-imagine-video-1.5` | 480p、720p、1080p | 1–15 秒 |
-| `seedance-2.0` | 480p、720p | 1–3600 秒 |
-| `seedance-2.5` | 480p、720p、1080p | 1–3600 秒 |
-| `seedance-2.0-fast-offical` | 480p、720p | 1–3600 秒 |
-| `seedance-2.0-mini-offical` | 480p、720p | 1–3600 秒 |
-| `seedance-2.0-offical` | 480p、720p、1080p | 1–3600 秒 |
+| `seedance-2.0` | 480p、720p | 5–15 秒 |
+| `seedance-2.5` | 480p、720p、1080p | 5–30 秒 |
+| `seedance-2.0-fast-offical` | 480p、720p | 4–15 秒 |
+| `seedance-2.0-mini-offical` | 480p、720p | 4–15 秒 |
+| `seedance-2.0-offical` | 480p、720p、1080p | 4–15 秒 |
 | `H3` | 720p | 4–15 秒；最多 9 张图片、3 条音频 |
 | `doubao-seedance-2-0-260128` | 480p、720p、1080p、4K | 4–15 秒 |
 | `doubao-seedance-2-0-fast-260128` | 480p、720p | 4–15 秒 |
@@ -55,7 +55,7 @@ New API openai_video 主机协议
 - `meta.protocols` 声明 `openai_video`，由主机解析 JSON 和 multipart 请求。
 - JSON 请求支持文档列出的字段；未知字段、错误的类型、超出模型能力的参数会被拒绝。
 - 支持本地文件的模型使用主机管理的 `__fileRef` 占位符；其他模型要求公开可访问的图片地址。
-- 四个扩展模型支持简化 JSON 与结构化 `content` 两种输入；结构化输入限制在 README 和下游指南列出的字段。
+- 全部模型接受统一 JSON 字段；三个 `offical` 模型与四个扩展模型额外支持结构化 `content`。两种格式互斥，顶层 `prompt` 不与 `content` 拼接。
 - 提交、查询和内容下载都使用配置服务的标准 `/v1/videos` 路由。
 - 任务状态统一映射为 New API 任务状态；客户端只使用 New API 任务 ID 查询和下载。
 - 成功任务可提供最终用量；无有效最终用量时保留请求阶段的计量事实。
@@ -93,7 +93,7 @@ New API openai_video 主机协议
 - [x] 实现 JSON/multipart 解码、模型能力校验和公开图片 URL 校验。
 - [x] 实现结构化 `content` 子集及模型范围限制。
 - [x] 实现 usage profiles、模型映射和完成态实际用量结算。
-- [x] 维护 12 个模型白名单及各模型分辨率、时长和输入限制；四个 RollDek Seedance 模型的分辨率逐模型对齐上游声明。
+- [x] 维护 12 个模型白名单及各模型分辨率、时长和输入限制；四个扩展 Seedance 模型分别校验分辨率。
 
 ### 阶段三：功能回归
 
@@ -110,7 +110,7 @@ New API openai_video 主机协议
 
 ### 阶段五：最终验证
 
-- [x] New API 插件 lint 通过，golden fixture 42/42 通过。
+- [x] 初始验证记录：New API 插件 lint 通过，golden fixture 42/42 通过；本次统一协议的验证结果见下方阶段记录。
 - [x] JavaScript 语法、fixture JSON、品牌词/私有路径扫描和差异空白检查通过。
 
 ## 阶段自检记录
@@ -143,6 +143,18 @@ New API openai_video 主机协议
 - 变更文件：`plugin.js`、`golden.json`、`README.md`、`docs/downstream-seedance-integration.md` 和本文件；未增删目录或职责文件。
 - 验证：`go run . plugin lint /opt/qlh-main/new-api-video-gateway-plugin/plugin.js` 通过；`go run . plugin test /opt/qlh-main/new-api-video-gateway-plugin/plugin.js --fixture /opt/qlh-main/new-api-video-gateway-plugin/golden.json` 通过（54/54）；`node --check plugin.js`、fixture JSON 解析和 `git diff --check` 均通过。
 
+### 本次统一请求协议验证
+
+- 源码版本：`coder-video-gateway@1.0.5`，12 个模型保持白名单；统一公共字段并按模型声明时长、分辨率和素材数量。
+- 三个 `offical` 模型新增结构化 content 转换，四个扩展模型保留原生 content；两个模式不混用。
+- 相同别名归一后只统计一次，冲突别名与未知字段在提交前拒绝；支持的 content 文本顺序和素材角色保持明确。
+- 站内离线串联验证覆盖 12 个模型、1286 项断言，确认最终请求与计量事实一致；公开指南中的 7 个请求示例同样通过。
+- 当前插件 JavaScript 语法、New API plugin lint、golden fixtures 70/70、JSON 和差异检查通过；未执行付费视频生成。
+- 公开指南、README、插件和夹具中的供应商名称与内部接口路径扫描无匹配；模型 ID 作为公共接口保留。
+- 本次发布内容为 `coder-video-gateway@1.0.5` 源码与统一接入文档；服务端兼容实现已部署。客户在自己的 New API 实例更新插件后使用新协议；自研平台直接按指南调用。价格、密钥和渠道配置不在修改范围。
+
 ## 最终审查结论
+
+本次统一协议发布版本为 `coder-video-gateway@1.0.5`。支持 12 个模型的共同请求格式和七个 Seedance 模型的 `content` 子集；请求别名、模型能力和计量事实保持一致。对外指南覆盖模型表、媒体输入、格式互斥、异步轮询和下载，不含服务内部适配信息。客户自己的 New API 实例需要导入并激活该版本，仓库发布不会替客户执行安装。
 
 下游文档与插件元数据描述公开端点、模型 ID、字段和逐模型分辨率能力，且与当前实现保持一致。插件仍按现有模型 ID 和字段执行能力校验；不支持本地上传的模型仅接受公开 HTTPS 媒体地址，不接受资源 ID。New API 插件 lint、fixture、语法、JSON、敏感信息和差异检查结果随本次验证记录更新。
