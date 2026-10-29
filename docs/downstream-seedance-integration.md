@@ -120,7 +120,7 @@ curl https://coderapi.vip/v1/videos \
 }
 ```
 
-Wan 使用统一顶层字段，支持参考图、参考视频和参考音频；它的上游映射模型为 `wan3.0-yuanlian`，客户端只传公开模型 ID：
+Wan 使用统一顶层字段，支持参考图、参考视频和参考音频；客户端只传公开模型 ID：
 
 ```json
 {
