@@ -35,6 +35,7 @@ Authorization: Bearer YOUR_API_KEY
 | `seedance-2.0-mini-offical` | 480p、720p | 4–15 秒 | 支持 |
 | `seedance-2.0-offical` | 480p、720p、1080p | 4–15 秒 | 支持 |
 | `H3` | 720p | 4–15 秒 | 不支持 |
+| `wan3.0-official` | 480p、720p、1080p | 2–30 秒；`-1` 自动时长 | 不支持 |
 | `doubao-seedance-2-0-260128` | 480p、720p、1080p、4k | 4–15 秒 | 支持 |
 | `doubao-seedance-2-0-fast-260128` | 480p、720p | 4–15 秒 | 支持 |
 | `doubao-seedance-2-0-mini-260615` | 480p、720p | 4–15 秒 | 支持 |
@@ -49,6 +50,7 @@ Authorization: Bearer YOUR_API_KEY
 | `seedance-2.5` | 最多 30 张 | 最多 10 条 | 最多 10 条 | 不支持 |
 | 三个 `seedance-2.0-…offical` 模型 | 最多 9 张 | 最多 3 条 | 最多 3 条 | 不支持 |
 | `H3` | 最多 9 张 | 不支持 | 最多 3 条 | 不支持 |
+| `wan3.0-official` | 最多 10 张 | 最多 5 条 | 最多 5 条 | 不支持 |
 | 四个 `doubao-seedance-…` 模型 | 支持 | 支持 | 支持 | 不支持 |
 
 上表的数量是对应模型的输入上限，不表示任意媒体组合都可同时使用。四个 `doubao-seedance-…` 模型的素材数量及素材时长限制由所选模型决定，本文不为它们约定统一数量上限。
@@ -118,6 +120,21 @@ curl https://coderapi.vip/v1/videos \
 }
 ```
 
+Wan 使用统一顶层字段，支持参考图、参考视频和参考音频；它的上游映射模型为 `wan3.0-yuanlian`，客户端只传公开模型 ID：
+
+```json
+{
+  "model": "wan3.0-official",
+  "prompt": "让参考视频中的纸船继续向前漂流",
+  "duration": 8,
+  "resolution": "720p",
+  "aspect_ratio": "adaptive",
+  "reference_video_urls": ["https://media.example.com/motion.mp4"],
+  "prompt_extend": true,
+  "watermark": false
+}
+```
+
 ### 首帧与尾帧
 
 三个 `seedance-2.0-…offical` 模型及四个 `doubao-seedance-…` 模型可使用以下形式：
@@ -152,8 +169,9 @@ curl https://coderapi.vip/v1/videos \
 | `first_frame_image_url` | string | 首帧图片 URL，只对前述支持模型使用 |
 | `last_frame_image_url` | string | 尾帧图片 URL，按上述首尾帧规则使用 |
 | `generate_audio` | boolean | 可选，是否生成音频；实际可用性取决于模型 |
+| `prompt_extend` | boolean | 可选，仅 `wan3.0-official` 接受 |
 | `seed` | integer | 可选，非负安全整数；Grok 不支持 |
-| `watermark` | boolean | 可选，仅四个 `doubao-seedance-…` 模型接受 |
+| `watermark` | boolean | 可选，`wan3.0-official` 和四个 `doubao-seedance-…` 模型接受 |
 
 可用比例：
 
@@ -161,13 +179,14 @@ curl https://coderapi.vip/v1/videos \
 | --- | --- |
 | 两个 Grok 模型 | `16:9`、`9:16`、`1:1`、`4:3`、`3:4`、`3:2`、`2:3` |
 | `seedance-2.0`、`seedance-2.5`、三个 `offical` 模型、H3 | `16:9`、`9:16`、`1:1`、`4:3`、`3:4` |
+| `wan3.0-official` | `adaptive`、`21:9`、`16:9`、`4:3`、`1:1`、`3:4`、`9:16` |
 | 四个 `doubao-seedance-…` 模型 | `16:9`、`9:16`、`1:1`、`4:3`、`3:4`、`21:9` |
 
 兼容别名：`seconds` 对应 `duration`；`ratio`、`aspectRatio` 对应 `aspect_ratio`；`image`、`image_url` 对应 `input_reference`；`images`、`image_urls` 对应 `reference_image_urls`。同一语义的多个别名同时传入时必须相同，否则报错。建议新接入只使用表中的规范名称，尺寸使用 `resolution` 和 `aspect_ratio` 分别指定，不依赖历史 `size` 字段。
 
-不要发送未列出的任意参数。`duration: -1`、`ratio: "adaptive"`、回调、草稿及其他未声明的功能均不属于本文接口范围。一个任务生成一个视频，建议不要传批量数量 `n`。
+不要发送未列出的任意参数。除 `wan3.0-official` 明确支持 `duration: -1` 和 `ratio: "adaptive"` 外，其他模型不要传这些值；回调、草稿及其他未声明的功能均不属于本文接口范围。一个任务生成一个视频，建议不要传批量数量 `n`。
 
-缺省行为仅用于兼容，建议客户端不要依赖：Grok 必须传时长；`seedance-2.0` 与 `seedance-2.5` 缺省时长为 5 秒；三个 `offical` 模型与 H3 为 4 秒。四个 `doubao-seedance-…` 模型省略时长时由模型确定，费用预估会按模型最大时长预留，成功后使用有效实际用量结算；省略时长不表示请求指定了最大时长。分辨率缺省时 Grok 使用 480p，六个非 `doubao-` 的 Seedance/H3 模型使用 720p；四个 `doubao-` 模型必须指定分辨率。
+缺省行为仅用于兼容，建议客户端不要依赖：Grok 必须传时长；`seedance-2.0` 与 `seedance-2.5` 缺省时长为 5 秒；三个 `offical` 模型与 H3 为 4 秒；Wan 缺省时长为 5 秒，传 `-1` 时由模型决定并按最长 30 秒预留，完成后以有效实际用量结算。四个 `doubao-seedance-…` 模型省略时长时由模型确定，费用预估会按模型最大时长预留，成功后使用有效实际用量结算；省略时长不表示请求指定了最大时长。分辨率缺省时 Grok 使用 480p，七个非 `doubao-` 的 Seedance/H3/Wan 模型使用 720p；四个 `doubao-` 模型必须指定分辨率。
 
 ## 4. Seedance 结构化 content 格式
 

@@ -8,9 +8,15 @@
 
 插件不注册额外公开端点。下游只使用上面列出的标准视频接口。
 
+## 接入教程
+
+- [New API 视频插件接入指南](docs/downstream-new-api-plugin-integration.md)：给自建 New API 的管理员，包含插件下载与安装、激活、渠道/分组/密钥配置、定价说明、视频验证和更新回退；直接按文档操作即可，无需克隆本仓库。
+- [客户端生图与视频生成 Skill 使用教程](docs/client-skill-usage.md)：给普通用户，包含 Codex/Claude Code 安装 Skill、逐视频分组保存密钥、生图、图生视频、提示词优化与任务恢复。
+- [视频 API 接入指南](docs/downstream-seedance-integration.md)：给自研客户端或平台，包含完整请求参数、参考素材、结构化 `content`、轮询和下载。
+
 ## 支持模型
 
-当前显式支持以下 12 个模型：
+当前显式支持以下 13 个模型：
 
 - `grok-imagine-video`
 - `grok-imagine-video-1.5`
@@ -20,6 +26,7 @@
 - `seedance-2.0-mini-offical`
 - `seedance-2.0-offical`
 - `H3`
+- `wan3.0-official`
 - `doubao-seedance-2-0-260128`
 - `doubao-seedance-2-0-fast-260128`
 - `doubao-seedance-2-0-mini-260615`
@@ -37,6 +44,7 @@
 | `seedance-2.0-mini-offical` | 480p、720p | 4–15 秒 |
 | `seedance-2.0-offical` | 480p、720p、1080p | 4–15 秒 |
 | `H3` | 720p | 4–15 秒；最多 9 张图片、3 条音频 |
+| `wan3.0-official` | 480p、720p、1080p | 2–30 秒；支持 `-1` 自动时长，最多 10 张图片、5 条参考视频、5 条参考音频 |
 | `doubao-seedance-2-0-260128` | 480p、720p、1080p、4K | 4–15 秒 |
 | `doubao-seedance-2-0-fast-260128` | 480p、720p | 4–15 秒 |
 | `doubao-seedance-2-0-mini-260615` | 480p、720p | 4–15 秒 |
@@ -46,7 +54,7 @@ New API 渠道支持将模型 ID 映射为客户侧别名；映射规则由服�
 
 ## New API 配置
 
-1. 在根管理员的任务插件页面上传 `plugin.js`，启用 `coder-video-gateway@1.0.5`。
+1. 在根管理员的任务插件页面上传 `plugin.js`，启用 `coder-video-gateway@1.1.0`。
 2. 新建渠道，渠道类型选择 **Task Plugin**，不要选择 OpenAI 类型。
 3. 任务插件选择 `coder-video-gateway`。
 4. Base URL 填写网关地址，例如 `https://coderapi.vip`。
@@ -61,11 +69,11 @@ New API 渠道支持将模型 ID 映射为客户侧别名；映射规则由服�
 
 前两个模型 ID 接受 JSON 图片 URL，也接受 multipart 图片上传；上传文件会转换为 New API 管理的文件占位符。
 
-`seedance-2.0`、`seedance-2.5`、三个 `seedance-2.0-...` 模型及 `H3` 使用可公开访问的 HTTP(S) 图片 URL，不接受本地 multipart 图片。四个 `doubao-seedance-...` 模型接受 HTTPS 图片 URL，也不接受本地 multipart 图片。需要让服务读取的素材应使用可访问的 HTTPS 地址，并放入 `input_reference`、`image` 或 `image_url`。
+`seedance-2.0`、`seedance-2.5`、三个 `seedance-2.0-...` 模型、`H3` 和 `wan3.0-official` 使用可公开访问的 HTTP(S) 图片 URL，不接受本地 multipart 图片。四个 `doubao-seedance-...` 模型接受 HTTPS 图片 URL，也不接受本地 multipart 图片。需要让服务读取的素材应使用可访问的 HTTPS 地址，并放入 `input_reference`、`image` 或 `image_url`。
 
 全部模型共用 `model`、`prompt`、`duration`、`resolution`、`aspect_ratio` 和单图 `input_reference` 等规范字段；别名相同则归一，冲突则拒绝。多图、参考视频和参考音频按逐模型能力校验，不把不支持的参数静默丢弃。
 
-三个 `offical` 模型和四个 `doubao-seedance-...` 模型还接受结构化 JSON `content`，包含 `text`、`image_url`、`video_url`、`audio_url`。使用该格式时文本和媒体全部放进 `content`，不与顶层 `prompt` 或参考媒体字段混用；控制参数仍放顶层。三个 `offical` 模型为 4–15 秒、最多 9 图/3 视频/3 音频、五种固定比例；四个 `doubao-seedance-...` 模型按各自时长、分辨率和比例校验。`watermark` 仅四个 `doubao-` 模型接受。详细支持范围、默认值和完整示例见下游指南。
+三个 `offical` 模型和四个 `doubao-seedance-...` 模型还接受结构化 JSON `content`，包含 `text`、`image_url`、`video_url`、`audio_url`。使用该格式时文本和媒体全部放进 `content`，不与顶层 `prompt` 或参考媒体字段混用；控制参数仍放顶层。三个 `offical` 模型为 4–15 秒、最多 9 图/3 视频/3 音频、五种固定比例；四个 `doubao-seedance-...` 模型按各自时长、分辨率和比例校验。`wan3.0-official` 使用统一顶层字段，支持 `adaptive`、`21:9`、`16:9`、`4:3`、`1:1`、`3:4`、`9:16`、`prompt_extend` 和 `watermark`，上游映射模型为 `wan3.0-yuanlian`。`watermark` 仅 Wan 和四个 `doubao-` 模型接受。详细支持范围、默认值和完整示例见下游指南。
 
 ## 计量与价格
 
@@ -74,6 +82,7 @@ New API 渠道支持将模型 ID 映射为客户侧别名；映射规则由服�
 - 标准模型：`duration`、`resolution`、`image_count`
 - 支持参考视频的模型：另含 `has_video`
 - `H3`：另含 `audio_count`
+- `wan3.0-official`：另含 `input_video_duration`；`-1` 自动时长按 30 秒预留，完成态使用上游实际时长
 - 四个 `doubao-seedance-...` 模型：`tokens`、`duration`、`resolution`、`video_input`
 
 四个扩展模型在提交阶段预估 token 数，成功任务查询阶段优先使用任务结果中的 `usage.total_tokens`；没有有效实际用量时保留预估值。价格由 New API 模型定价页面配置，插件不会写入价格。
@@ -87,7 +96,7 @@ new-api plugin lint /opt/qlh-main/new-api-video-gateway-plugin/plugin.js
 new-api plugin test /opt/qlh-main/new-api-video-gateway-plugin/plugin.js --fixture /opt/qlh-main/new-api-video-gateway-plugin/golden.json
 ```
 
-测试夹具覆盖 12 个模型、分辨率与时长限制、token 计量和结构化 `content` 请求、JSON/multipart 解码、图片/音频输入、标准 `/v1/videos` 提交/查询/内容请求、状态映射、渲染和计量事实。
+测试夹具覆盖 13 个模型、分辨率与时长限制、Wan 自动时长和参考视频计量、token 计量和结构化 `content` 请求、JSON/multipart 解码、图片/音频输入、标准 `/v1/videos` 提交/查询/内容请求、状态映射、渲染和计量事实。
 
 ## 客户调用示例
 

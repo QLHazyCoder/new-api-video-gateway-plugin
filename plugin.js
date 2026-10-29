@@ -2,6 +2,8 @@ const MULTIPART_CLASSIC = "grok-imagine-video";
 const MULTIPART_15 = "grok-imagine-video-1.5";
 const MULTIPART_MODELS = [MULTIPART_CLASSIC, MULTIPART_15];
 const H3_MODEL = "H3";
+const WAN_MODEL = "wan3.0-official";
+const WAN_RATIOS = ["adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"];
 const EXTENDED_CONFIG = {
   "doubao-seedance-2-0-260128": { maxDuration: 15, resolutions: ["480p", "720p", "1080p", "4k"] },
   "doubao-seedance-2-0-fast-260128": { maxDuration: 15, resolutions: ["480p", "720p"] },
@@ -38,10 +40,11 @@ const URL_INPUT_CONFIG = {
   "seedance-2.0-mini-offical": { minDuration: 4, maxDuration: 15, defaultDuration: 4, resolutions: ["480p", "720p"], maxImages: 9, maxVideos: 3, maxAudios: 3 },
   "seedance-2.0-offical": { minDuration: 4, maxDuration: 15, defaultDuration: 4, resolutions: ["480p", "720p", "1080p"], maxImages: 9, maxVideos: 3, maxAudios: 3 },
   H3: { minDuration: 4, maxDuration: 15, defaultDuration: 4, resolutions: ["720p"], maxImages: 9, maxVideos: 0, maxAudios: 3 },
+  "wan3.0-official": { minDuration: 2, maxDuration: 30, defaultDuration: 5, resolutions: ["480p", "720p", "1080p"], maxImages: 10, maxVideos: 5, maxAudios: 5, allowAutoDuration: true },
 };
 const URL_INPUT_MODELS = Object.keys(URL_INPUT_CONFIG);
 const URL_INPUT_720_ONLY_MODELS = URL_INPUT_MODELS.filter(function (model) { return model !== H3_MODEL && URL_INPUT_CONFIG[model].resolutions.length === 2; });
-const URL_INPUT_1080_MODELS = URL_INPUT_MODELS.filter(function (model) { return URL_INPUT_CONFIG[model].resolutions.indexOf("1080p") >= 0; });
+const URL_INPUT_1080_MODELS = URL_INPUT_MODELS.filter(function (model) { return model !== WAN_MODEL && URL_INPUT_CONFIG[model].resolutions.indexOf("1080p") >= 0; });
 const URL_INPUT_RESOLUTIONS = URL_INPUT_CONFIG["seedance-2.5"].resolutions;
 const URL_CONTENT_MODELS = ["seedance-2.0-fast-offical", "seedance-2.0-mini-offical", "seedance-2.0-offical"];
 const URL_ASPECT_RATIOS = ["9:16", "16:9", "1:1", "3:4", "4:3"];
@@ -94,6 +97,8 @@ const SUPPORTED_FIELDS = {
   grid_strength: true,
   strength: true,
   auto_face_mask: true,
+  prompt_extend: true,
+  watermark: true,
 };
 
 const EXTENDED_SUPPORTED_FIELDS = {
@@ -149,6 +154,12 @@ const AUDIO_COUNT_FIELD = {
   unit: "count",
   unitLabel: { en: "audio", zh: "条" },
   description: { en: "Input audio unit price", zh: "输入音频单价" },
+};
+
+const INPUT_VIDEO_DURATION_FIELD = {
+  type: "number",
+  unit: "second",
+  description: { en: "Reference video duration unit price", zh: "参考视频时长单价" },
 };
 
 const HAS_VIDEO_FIELD = {
@@ -220,7 +231,7 @@ const EXTENDED_USAGE_PROFILES = EXTENDED_MODELS.map(function (model) {
   };
 });
 
-function usageSchema(resolutions, includeVideo) {
+function usageSchema(resolutions, includeVideo, includeInputVideo) {
   const schema = {
     duration: DURATION_FIELD,
     resolution: {
@@ -232,6 +243,7 @@ function usageSchema(resolutions, includeVideo) {
   };
   for (const resolution of resolutions) schema.resolution.enumLabels[resolution] = RESOLUTION_LABELS[resolution];
   if (includeVideo) schema.has_video = HAS_VIDEO_FIELD;
+  if (includeInputVideo) schema.input_video_duration = INPUT_VIDEO_DURATION_FIELD;
   return schema;
 }
 
@@ -244,7 +256,7 @@ export const meta = {
     en: "Video generation through a standard OpenAI-compatible interface",
     zh: "通过标准 OpenAI 兼容接口提供视频生成服务",
   },
-  version: "1.0.5",
+  version: "1.1.0",
   author: { name: "QLHazyCoder" },
   website: "https://coderapi.vip",
   baseUrl: "https://coderapi.vip",
@@ -290,6 +302,14 @@ export const meta = {
       examples: [
         { label: "720p 4s", facts: { duration: 4, resolution: "720p", image_count: 0, audio_count: 0 } },
         { label: "720p 15s · 9 images · 3 audio", facts: { duration: 15, resolution: "720p", image_count: 9, audio_count: 3 } },
+      ],
+    },
+    {
+      models: [WAN_MODEL],
+      schema: usageSchema(["480p", "720p", "1080p"], false, true),
+      examples: [
+        { label: "720p 5s", facts: { duration: 5, resolution: "720p", image_count: 0, input_video_duration: 0 } },
+        { label: "1080p 10s · reference video", facts: { duration: 10, resolution: "1080p", image_count: 0, input_video_duration: 8 } },
       ],
     },
     ...EXTENDED_USAGE_PROFILES,
@@ -372,8 +392,12 @@ function durationFor(request, model) {
   const config = URL_INPUT_CONFIG[model];
   const minimum = config ? config.minDuration : isExtended(model) ? 4 : 1;
   const maximum = config ? config.maxDuration : isExtended(model) ? EXTENDED_CONFIG[model].maxDuration : 15;
-  if (hasValue(request.seconds)) values.push(integerValue(request.seconds, "seconds", minimum, maximum));
-  if (hasValue(request.duration)) values.push(integerValue(request.duration, "duration", minimum, maximum));
+  const normalizeDuration = function (value, field) {
+    if (config && config.allowAutoDuration && (value === -1 || (typeof value === "string" && trimmed(value) === "-1"))) return -1;
+    return integerValue(value, field, minimum, maximum);
+  };
+  if (hasValue(request.seconds)) values.push(normalizeDuration(request.seconds, "seconds"));
+  if (hasValue(request.duration)) values.push(normalizeDuration(request.duration, "duration"));
   if (values.length > 1 && values[0] !== values[1]) throw new Error("seconds and duration must match when both are provided");
   if (!values.length) {
     if (config) return config.defaultDuration;
@@ -622,8 +646,9 @@ function normalizeUrlInputRequest(request, model, uploadedFile) {
     return stringValue(value, field);
   });
   if (aspectRatio !== undefined) {
-    if (URL_ASPECT_RATIOS.indexOf(aspectRatio) < 0) {
-      throw new Error("aspect_ratio must be one of " + URL_ASPECT_RATIOS.join(", ") + " for " + model);
+    const allowedRatios = model === WAN_MODEL ? WAN_RATIOS : URL_ASPECT_RATIOS;
+    if (allowedRatios.indexOf(aspectRatio) < 0) {
+      throw new Error("aspect_ratio must be one of " + allowedRatios.join(", ") + " for " + model);
     }
     normalized.aspect_ratio = aspectRatio;
   }
@@ -641,6 +666,14 @@ function normalizeUrlInputRequest(request, model, uploadedFile) {
   }
   for (const field of ["generate_audio", "return_last_frame", "bypass_face_check", "auto_face_mask"]) {
     if (hasOwn(request, field)) normalized[field] = booleanValue(request[field], field);
+  }
+  if (hasOwn(request, "prompt_extend")) {
+    if (model !== WAN_MODEL) throw new Error("prompt_extend is supported only by " + WAN_MODEL);
+    normalized.prompt_extend = booleanValue(request.prompt_extend, "prompt_extend");
+  }
+  if (hasOwn(request, "watermark")) {
+    if (model !== WAN_MODEL) throw new Error("watermark is supported only by " + WAN_MODEL);
+    normalized.watermark = booleanValue(request.watermark, "watermark");
   }
   if (hasOwn(request, "seed")) normalized.seed = integerValue(request.seed, "seed", 0);
   if (hasOwn(request, "output_format")) {
@@ -1055,6 +1088,39 @@ export function parseSubmitResponse(_ctx, response) {
   return result;
 }
 
+function reservedDurationForUsage(duration, model) {
+  if (duration === -1 && URL_INPUT_CONFIG[model]) return URL_INPUT_CONFIG[model].maxDuration;
+  return duration;
+}
+
+function numericFact(value) {
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0) return value;
+  if (typeof value === "string" && trimmed(value) !== "" && Number.isFinite(Number(value)) && Number(value) >= 0) return Number(value);
+  return undefined;
+}
+
+function usageObjects(data) {
+  const objects = [];
+  if (!isObject(data)) return objects;
+  objects.push(data);
+  if (isObject(data.usage)) objects.push(data.usage);
+  if (isObject(data.metadata)) objects.push(data.metadata);
+  if (isObject(data.metadata) && isObject(data.metadata.usage)) objects.push(data.metadata.usage);
+  if (isObject(data.result)) objects.push(data.result);
+  if (isObject(data.result) && isObject(data.result.usage)) objects.push(data.result.usage);
+  return objects;
+}
+
+function firstNumericUsage(data, fields) {
+  for (const object of usageObjects(data)) {
+    for (const field of fields) {
+      const value = numericFact(object[field]);
+      if (value !== undefined) return value;
+    }
+  }
+  return undefined;
+}
+
 export function extractUsage(ctx) {
   const resolved = normalizedRequestForContext(ctx);
   const normalized = resolved.request;
@@ -1068,11 +1134,14 @@ export function extractUsage(ctx) {
     };
   }
   const facts = {
-    duration: normalized.duration,
+    duration: reservedDurationForUsage(normalized.duration, resolved.upstreamModel),
     resolution: normalized.resolution,
     image_count: imageCount(normalized),
   };
-  if (resolved.upstreamModel === H3_MODEL) facts.audio_count = audioCount(normalized);
+  if (resolved.upstreamModel === WAN_MODEL) {
+    const maxDuration = URL_INPUT_CONFIG[WAN_MODEL].maxDuration;
+    facts.input_video_duration = hasReferenceVideo(normalized) ? Math.max(0, maxDuration - facts.duration) : 0;
+  } else if (resolved.upstreamModel === H3_MODEL) facts.audio_count = audioCount(normalized);
   else if (isUrlInputModel(resolved.upstreamModel)) facts.has_video = hasReferenceVideo(normalized) ? "true" : "false";
   return facts;
 }
@@ -1128,6 +1197,31 @@ export function extractUsageOnComplete(ctx, _result, body) {
     if (state.video_input === "video" || state.video_input === "none") facts.video_input = state.video_input;
   }
   if (isExtended(model)) return facts;
+  if (model === WAN_MODEL) {
+    const duration = firstNumericUsage(data, ["output_video_duration", "outputVideoDuration", "duration", "seconds"]);
+    if (duration !== undefined) {
+      try {
+        facts.duration = integerValue(duration, "upstream video duration", URL_INPUT_CONFIG[WAN_MODEL].minDuration, URL_INPUT_CONFIG[WAN_MODEL].maxDuration);
+      } catch (_error) {
+        // Keep the reserved request duration when the upstream returns an invalid value.
+      }
+    }
+    if (hasValue(data.resolution)) {
+      try {
+        facts.resolution = normalizeResolution(data.resolution, model);
+      } catch (_error) {
+        // Keep the request resolution when the upstream returns an invalid value.
+      }
+    }
+    const inputVideoDuration = firstNumericUsage(data, [
+      "input_video_duration",
+      "inputVideoDuration",
+      "reference_video_duration",
+      "referenceVideoDuration",
+    ]);
+    if (inputVideoDuration !== undefined) facts.input_video_duration = inputVideoDuration;
+    return facts;
+  }
   const durationCandidates = [
     data.duration,
     data.seconds,

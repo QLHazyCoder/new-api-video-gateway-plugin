@@ -1422,6 +1422,93 @@
         }
       ],
       "expectedError": ".type must be text"
+    },
+    {
+      "name": "accepts the Wan public model and automatic duration",
+      "hook": "protocols",
+      "path": [
+        "openai_video",
+        "decodeRequest"
+      ],
+      "args": [
+        {
+          "model": "wan3.0-official",
+          "upstreamModel": "wan3.0-official",
+          "body": {
+            "kind": "json",
+            "value": {
+              "model": "wan3.0-official",
+              "prompt": "A paper boat on a quiet lake",
+              "duration": -1,
+              "resolution": "720p",
+              "aspect_ratio": "adaptive",
+              "prompt_extend": true,
+              "watermark": false
+            }
+          }
+        }
+      ],
+      "expected": {
+        "kind": "submit",
+        "model": "wan3.0-official",
+        "action": "text_to_video",
+        "requestBody": {
+          "model": "wan3.0-official",
+          "prompt": "A paper boat on a quiet lake",
+          "duration": -1,
+          "resolution": "720p",
+          "aspect_ratio": "adaptive",
+          "prompt_extend": true,
+          "watermark": false
+        }
+      }
+    },
+    {
+      "name": "reports Wan reference video reservation",
+      "hook": "extractUsage",
+      "args": [
+        {
+          "requestBody": {
+            "model": "wan3.0-official",
+            "prompt": "Continue the reference clip",
+            "duration": 8,
+            "resolution": "720p",
+            "reference_video_urls": ["https://media.example/reference.mp4"]
+          },
+          "model": "wan3.0-official",
+          "upstreamModel": "wan3.0-official"
+        }
+      ],
+      "expected": {
+        "duration": 8,
+        "resolution": "720p",
+        "image_count": 0,
+        "input_video_duration": 22
+      }
+    },
+    {
+      "name": "applies Wan completion usage",
+      "hook": "extractUsageOnComplete",
+      "args": [
+        {
+          "model": "wan3.0-official",
+          "upstreamModel": "wan3.0-official"
+        },
+        {},
+        {
+          "status": "completed",
+          "usage": {
+            "output_video_duration": 7,
+            "input_video_duration": 4
+          },
+          "resolution": "480p"
+        }
+      ],
+      "expected": {
+        "duration": 7,
+        "resolution": "480p",
+        "input_video_duration": 4
+      }
     }
   ]
 }
